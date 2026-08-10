@@ -38,7 +38,7 @@
 <body>
   <div class="head">
     <h1>Что такое плотность точек</h1>
-    <p>Крути от 0 до 1. Точек столько же — меняется площадь. Плотность = точек ÷ площадь.</p>
+    <p>Крути плотность от 0 до 1. Точек столько же — меняется площадь (area). Плотность = n_points ÷ area.</p>
   </div>
 
   <div class="stage"><canvas id="c"></canvas></div>
@@ -49,10 +49,6 @@
       <input id="s" type="range" min="0" max="1" step="0.01" value="0.5">
       <span class="val" id="sv">0.50</span>
     </div>
-    <div class="stats">
-      <div class="stat"><div class="k">Площадь облака (усл. ед.)</div><div class="v" id="area">—</div></div>
-      <div class="stat"><div class="k"><span class="dotA">●</span> точек / площадь</div><div class="v" id="dens">—</div></div>
-    </div>
   </div>
 
 <script>
@@ -60,8 +56,6 @@ const cvs = document.getElementById('c');
 const ctx = cvs.getContext('2d');
 const slider = document.getElementById('s');
 const sv = document.getElementById('sv');
-const areaEl = document.getElementById('area');
-const densEl = document.getElementById('dens');
 
 const N = 160;                         // точек в каждом кластере (фиксировано)
 let W = 0, H = 0;
@@ -91,10 +85,6 @@ function draw(d){
   const cB={x:W*0.66,y:H*0.5,color:'#ff9f45',soft:'rgba(255,159,69,.15)'};
   drawCluster(cA,offA,spread);
   drawCluster(cB,offB,spread);
-
-  const r=2*spread, area=Math.PI*r*r/10000, density=N/area;
-  areaEl.textContent=area.toFixed(1);
-  densEl.textContent=density.toFixed(1);
 }
 
 function drawCluster(c,offs,spread){
