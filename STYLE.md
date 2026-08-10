@@ -27,8 +27,12 @@ xai-course-visual/
 ```
 
 - One folder = one topic. Don't put files in the root.
+- Folders **may nest** (topic/method, e.g. `nonlinear_interpretable_models/DBSCAN/`).
 - Names in Latin, no spaces, `kebab-case`.
 - **Language as a suffix:** `<name>.ru.html` and `<name>.en.html`.
+- **Link assets by the absolute Pages path** `/xai-course-visual/assets/viz.css`
+  (and `…/viz.js`), **not** `../assets/…`. Absolute works at any nesting depth; a
+  relative `../` breaks the moment a file sits one level deeper than expected.
 
 ## 2. Two language versions
 
@@ -46,7 +50,7 @@ layout are identical. When you change logic — change **both** files (the price
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>…</title>
-  <link rel="stylesheet" href="../assets/viz.css">
+  <link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
 </head>
 <body class="viz" data-palette="density">
   <div class="viz-head">
@@ -60,7 +64,7 @@ layout are identical. When you change logic — change **both** files (the price
     <!-- sliders / legend -->
   </div>
 
-  <script src="../assets/viz.js"></script>
+  <script src="/xai-course-visual/assets/viz.js"></script>
   <script> /* visual logic via VIZ.* */ </script>
 </body>
 </html>
