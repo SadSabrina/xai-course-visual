@@ -1,0 +1,101 @@
+/* ============================================================
+   xai-course-visual — единая система стилей интерактивных картинок.
+   Бело-минималистичный вид, мягкий объём, нежные цвета.
+   Палитры переключаются per-метод атрибутом на <body>:
+       <body class="viz" data-palette="density|shap|lime">
+   Все палитры проверены валидатором на дальтонизм и контраст (light+dark).
+   Правило №1: в самих картинках НЕ пишем hex и px — только var(--…) и VIZ.css().
+   Подробности — в STYLE.md.
+   ============================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700&display=swap');
+
+/* ---------- базовые токены (тема), одинаковы для всех палитр ---------- */
+:root{
+  color-scheme: light;
+
+  --plane:      #f6f7f9;   /* фон страницы — светлый, воздушный */
+  --surface:    #ffffff;   /* белая «сцена» */
+
+  --ink:        #14161a;   /* заголовок / основной текст */
+  --ink-2:      #5b616b;   /* подписи */
+  --muted:      #9aa0aa;   /* еле заметное */
+  --line:       #ececf0;   /* тонкие границы */
+
+  --accent:     #6c5fd0;   /* мягкий индиго — контролы/акцент, НЕ данные */
+
+  /* мягкий объём: тень сцены */
+  --shadow:     0 6px 22px rgba(20,22,26,.06), 0 1px 3px rgba(20,22,26,.05);
+
+  --font:       "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-title:   23px;
+  --fs-body:    18px;
+  --fs-label:   16px;
+  --fs-value:   20px;
+
+  --pad:        16px;
+  --radius:     16px;
+
+  --dot:        #c2c7d0;   /* нейтральные точки «фон/прочее» */
+}
+@media (prefers-color-scheme: dark){
+  :root:where(:not([data-theme="light"])){
+    color-scheme: dark;
+    --plane:   #0e0f12;
+    --surface: #16181d;
+    --ink:     #f2f3f5;
+    --ink-2:   #b9bcc4;
+    --muted:   #7c828c;
+    --line:    #24272e;
+    --accent:  #9a8ff0;
+    --shadow:  0 6px 22px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.4);
+    --dot:     #495264;
+  }
+}
+
+/* ---------- палитры данных (per-метод) ---------- */
+/* light */
+.viz, .viz[data-palette="density"]{ --s1:#2a78d6; --s2:#eb6834; }  /* синий + оранжевый */
+.viz[data-palette="shap"]{          --s1:#2a78d6; --s2:#d9564e; }  /* синий ↔ красный */
+.viz[data-palette="lime"]{          --s1:#2a78d6; --s2:#2f9e5f; }  /* синий + зелёный */
+/* dark (свои шаги тех же цветов, в валидной зоне светлоты) */
+@media (prefers-color-scheme: dark){
+  .viz, .viz[data-palette="density"]{ --s1:#3987e5; --s2:#d95926; }
+  .viz[data-palette="shap"]{          --s1:#3987e5; --s2:#d95f57; }
+  .viz[data-palette="lime"]{          --s1:#3987e5; --s2:#37a866; }
+}
+
+/* ============================================================
+   Каркас демки — в картинке достаточно классов ниже.
+   ============================================================ */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body.viz{
+  background:var(--plane); color:var(--ink);
+  font:400 var(--fs-body)/1.55 var(--font);
+  display:flex; flex-direction:column; padding:var(--pad); gap:12px;
+}
+.viz-head{flex:0 0 auto}
+.viz-head h1{font-size:var(--fs-title); font-weight:700; letter-spacing:-.015em; margin:0 0 5px}
+.viz-head p{color:var(--ink); font-size:var(--fs-body); font-weight:400; margin:0; max-width:60ch}
+
+.viz-stage{
+  flex:1 1 auto; position:relative; min-height:0;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;
+}
+.viz-stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.viz-stage.grab{cursor:grab; touch-action:none}
+.viz-stage.grab:active{cursor:grabbing}
+
+.viz-controls{flex:0 0 auto}
+.viz-row{display:flex; align-items:center; gap:12px}
+.viz-row input[type=range]{flex:1; accent-color:var(--accent); height:24px}
+.viz-label{color:var(--ink-2); font-size:var(--fs-label); white-space:nowrap}
+.viz-val{font-size:var(--fs-value); font-weight:600; font-variant-numeric:tabular-nums;
+         min-width:40px; text-align:right}
+
+/* легенда: идентичность серии — не только цветом (кружок + текст) */
+.viz-legend{display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;
+            font-size:var(--fs-label); color:var(--ink-2)}
+.viz-legend .item{display:inline-flex; align-items:center; gap:7px}
+.viz-legend .swatch{width:10px; height:10px; border-radius:50%; flex:0 0 auto}

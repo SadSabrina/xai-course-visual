@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dense region</title>
+<link rel="stylesheet" href="../assets/viz.css">
+</head>
+<body class="viz" data-palette="density">
+  <div class="viz-head">
+    <h1>Dense region</h1>
+    <p>Drag the dense region across the field. Inside — many points per area, outside — sparse. That is what a “dense region” means.</p>
+  </div>
+
+  <div class="viz-stage grab" id="stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>Dense region</span>
+      <span class="item"><span class="swatch" style="background:var(--dot)"></span>Background (sparse)</span>
+    </div>
+  </div>
+
+<script src="../assets/viz.js"></script>
+<script>
+const M = 200;                                   // sparse background, normalized coords
+const bg = Array.from({length:M},()=>[Math.random(),Math.random()]);
+const K = 110;                                   // dense blob
+const blob = Array.from({length:K},()=>[VIZ.gaussian(),VIZ.gaussian()]);
+let cx = 0.5, cy = 0.42;                          // region centre (normalized)
+
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('c');
+
+const view = VIZ.mount(canvas, (ctx, W, H) => {
+  ctx.clearRect(0,0,W,H);
+  const base = Math.min(W,H);
+  const spread = base*0.075;
+  const dot = Math.max(2.5, base*0.007);
+
+  VIZ.scatter(ctx, bg, W, H, VIZ.css('--dot'), dot);
+
+  const px = cx*W, py = cy*H;
+  VIZ.region(ctx, px, py, 2.3*spread, VIZ.css('--accent'));
+  VIZ.cloud(ctx, px, py, blob, spread, VIZ.css('--s1'), dot);
+});
+
+function moveTo(e){
+  const r = canvas.getBoundingClientRect();
+  cx = Math.min(0.95, Math.max(0.05, (e.clientX-r.left)/r.width));
+  cy = Math.min(0.95, Math.max(0.05, (e.clientY-r.top)/r.height));
+  view.redraw();
+}
+let dragging=false;
+stage.addEventListener('pointerdown', e=>{dragging=true; stage.setPointerCapture(e.pointerId); moveTo(e);});
+stage.addEventListener('pointermove', e=>{if(dragging) moveTo(e);});
+stage.addEventListener('pointerup',   ()=>dragging=false);
+stage.addEventListener('pointercancel',()=>dragging=false);
+</script>
+</body>
+</html>
