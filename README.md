@@ -31,7 +31,8 @@ Each visual comes in two language versions: `.ru.html` and `.en.html`.
 
 ## Embedding in Stepik
 
-One URL per language (see STYLE.md §8):
+Step-by-step template with a copy-paste snippet: **[EMBED.md](EMBED.md)**.
+One URL per language:
 
 ```html
 <iframe src="https://sadsabrina.github.io/xai-course-visual/density/two-clusters.en.html"

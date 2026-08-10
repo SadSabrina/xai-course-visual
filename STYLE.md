@@ -167,6 +167,8 @@ Stepik strips `<script>` from a step's HTML editor → embed the interactive **v
 - Moving/renaming a file changes its URL → fix the iframe in steps you already embedded.
 - In the Stepik mobile app an iframe isn't always responsive — check the height.
 
+Step-by-step template with a copy-paste snippet: **[EMBED.md](EMBED.md)**.
+
 ## 9. Pre-commit checklist
 
 - [ ] File in a topic folder, `kebab-case` name, language suffix `.ru/.en`.
