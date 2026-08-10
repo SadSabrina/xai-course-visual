@@ -1,23 +1,23 @@
-# STYLE — как делать картинки в едином стиле
+# STYLE — how to build visuals in one consistent style
 
-Этот файл — правила для всех, кто добавляет интерактивные картинки в репозиторий:
-для человека (Сабрина, Елена) и для генерирующей модели (Claude и т.п.).
-Цель — чтобы любые две картинки выглядели как одна система: одинаковый шрифт,
-одинаковые цвета, одинаковая раскладка, светлая и тёмная темы «из коробки».
+This file is the rulebook for everyone who adds interactive visuals to the repo:
+humans (Sabrina, collaborator) and the generating model (Claude etc.). The goal —
+any two visuals should read as one system: same font, same colors, same layout,
+light and dark themes out of the box.
 
-Правило №1: **никаких hex-цветов и px-размеров прямо в картинке.** Всё берётся
-из токенов `assets/viz.css`. Тогда стиль меняется в одном месте, а не в 40 файлах.
+Rule #1: **no hex colors or px sizes inside a visual.** Everything comes from the
+tokens in `assets/viz.css`. Then the style changes in one place, not across 40 files.
 
 ---
 
-## 1. Структура и именование
+## 1. Structure and naming
 
 ```
 xai-course-visual/
 ├── assets/
-│   ├── viz.css        ← токены (цвета, шрифты) + каркас демки
-│   └── viz.js         ← хелперы (canvas, gauss, точки)
-├── density/           ← папка = ТЕМА (density, attention, shap, saliency …)
+│   ├── viz.css        ← tokens (colors, fonts) + demo skeleton
+│   └── viz.js         ← helpers (canvas, gauss, points)
+├── density/           ← folder = TOPIC (density, attention, shap, saliency …)
 │   ├── two-clusters.ru.html
 │   ├── two-clusters.en.html
 │   ├── dense-region.ru.html
@@ -26,22 +26,22 @@ xai-course-visual/
 └── README.md
 ```
 
-- Одна папка = одна тема. Файлы в корень не кладём.
-- Имена — латиницей, без пробелов, `kebab-case`.
-- **Язык — суффиксом:** `<name>.ru.html` и `<name>.en.html`.
+- One folder = one topic. Don't put files in the root.
+- Names in Latin, no spaces, `kebab-case`.
+- **Language as a suffix:** `<name>.ru.html` and `<name>.en.html`.
 
-## 2. Две языковые версии
+## 2. Two language versions
 
-Одна картинка = **два файла**, `.ru.html` и `.en.html`. Отличаются они
-**только текстом** (заголовок, подпись, легенда, `<title>`, `lang="ru|en"`).
-Вся логика, числа, цвета, раскладка — идентичны. Правишь логику — правь **оба**
-файла (это цена выбора «два файла»; следи, чтобы не разъезжались).
+One visual = **two files**, `.ru.html` and `.en.html`. They differ in **text only**
+(title, caption, legend, `<title>`, `lang="ru|en"`). All logic, numbers, colors, and
+layout are identical. When you change logic — change **both** files (the price of the
+"two files" choice; keep them from drifting apart).
 
-## 3. Как устроена картинка (скелет)
+## 3. Anatomy of a visual (skeleton)
 
 ```html
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -50,135 +50,137 @@ xai-course-visual/
 </head>
 <body class="viz" data-palette="density">
   <div class="viz-head">
-    <h1>Заголовок</h1>
-    <p>Короткая подпись — что делать и что показано.</p>
+    <h1>Title</h1>
+    <p>Short caption — what to do and what is shown.</p>
   </div>
 
   <div class="viz-stage"><canvas id="c"></canvas></div>
 
   <div class="viz-controls">
-    <!-- слайдеры / легенда -->
+    <!-- sliders / legend -->
   </div>
 
   <script src="../assets/viz.js"></script>
-  <script> /* логика картинки через VIZ.* */ </script>
+  <script> /* visual logic via VIZ.* */ </script>
 </body>
 </html>
 ```
 
-Готовые классы (не изобретай свои): `viz-head`, `viz-stage` (добавь `grab` для
-перетаскивания), `viz-controls`, `viz-row`, `viz-label`, `viz-val`, `viz-legend`.
+Ready-made classes (don't invent your own): `viz-head`, `viz-stage` (add `grab` for
+dragging), `viz-controls`, `viz-row`, `viz-label`, `viz-val`, `viz-legend`.
 
-Хелперы `VIZ` (см. `assets/viz.js`):
-- `VIZ.mount(canvas, draw)` — настраивает retina-canvas, ресайз и **перерисовку при смене темы**; возвращает `{ redraw() }`. `draw(ctx, W, H)` получает размеры в CSS-пикселях.
-- `VIZ.css('--s1')` — прочитать токен-цвет (всегда бери цвет отсюда).
-- `VIZ.gaussian()` — стандартное нормальное число (гауссовы облака).
-- `VIZ.cloud(ctx, cx, cy, offs, spread, color, dot)` — гауссов сгусток.
-- `VIZ.scatter(ctx, pts, W, H, color, dot)` — точки по полю (`pts` в [0..1]).
-- `VIZ.region(ctx, x, y, r, hue)` — область: мягкая заливка + жёсткая пунктирная граница-кружок.
-- `VIZ.scatter(ctx, pts, W, H, color, dot)` — точки по полю (`pts` в [0..1]).
+`VIZ` helpers (see `assets/viz.js`):
+- `VIZ.mount(canvas, draw)` — sets up the retina canvas, resize and **redraw on theme change**; returns `{ redraw() }`. `draw(ctx, W, H)` gets sizes in CSS pixels.
+- `VIZ.css('--s1')` — read a color token (always take colors from here).
+- `VIZ.gaussian()` — a standard normal number (Gaussian point clouds).
+- `VIZ.cloud(ctx, cx, cy, offs, spread, color, dot)` — a Gaussian blob.
+- `VIZ.scatter(ctx, pts, W, H, color, dot)` — points across the field (`pts` in [0..1]).
+- `VIZ.region(ctx, x, y, r, hue)` — region: soft fill + crisp dashed boundary circle.
 
-Атрибут `data-palette` на `<body>` выбирает палитру метода (см. §4).
+The `data-palette` attribute on `<body>` selects the method's palette (see §4).
 
-После изменения состояния (слайдер, перетаскивание) вызывай `view.redraw()`.
+After changing state (slider, dragging) call `view.redraw()`.
 
-## 4. Цвет — по роли, а не «на глаз»
+## 4. Color — by role, not "by eye"
 
-Эстетика: **бело-минималистичная**, белая карточка с лёгкой тенью, воздуха много.
-Область данных — мягкая заливка + **жёсткая пунктирная граница-кружок** (`VIZ.region`),
-цвета данных насыщенные (контраст), фон-точки нейтральные.
+Aesthetic: **white, minimalist** — a white card with a light shadow, plenty of air.
+The data region is a soft fill + a **crisp dashed boundary circle** (`VIZ.region`);
+data colors are saturated (contrast); background points are neutral.
 
-**Палитра выбирается по методу** — атрибутом `data-palette` на `<body>`. Цвета
-`--s1`/`--s2` подставляются автоматически (и в светлой, и в тёмной теме):
+**The palette is chosen per method** — via the `data-palette` attribute on `<body>`.
+`--s1`/`--s2` are substituted automatically (in both light and dark themes):
 
-**Синий `#2a78d6` — якорный цвет системы:** он `--s1` в КАЖДОЙ палитре (сочетается
-с белым фоном, держит единый вид). Меняется только второй цвет `--s2` — под метод.
+**Blue `#2a78d6` is the anchor color of the system:** it is `--s1` in EVERY palette
+(pairs with the white background, keeps a unified look). Only the second color `--s2`
+changes per method.
 
-| `data-palette` | `--s1` (якорь) | `--s2` | смысл |
+| `data-palette` | `--s1` (anchor) | `--s2` | meaning |
 |---|---|---|---|
-| `density` (по умолч.) | синий `#2a78d6` | оранжевый `#eb6834` | две категории / кластеры |
-| `shap` | синий `#2a78d6` | красный `#d9564e` | диверджент − ↔ + (вклад признака) |
-| `lime` | синий `#2a78d6` | зелёный `#2f9e5f` | своя, чтобы не путать со SHAP |
+| `density` (default) | blue `#2a78d6` | orange `#eb6834` | two categories / clusters |
+| `shap` | blue `#2a78d6` | red `#d9564e` | diverging − ↔ + (feature contribution) |
+| `lime` | blue `#2a78d6` | green `#2f9e5f` | its own, to not clash with SHAP |
 
-(тёмная тема — свои шаги тех же цветов, в валидной зоне светлоты; см. `viz.css`.)
+(dark theme uses its own steps of the same colors, within the valid lightness band; see `viz.css`.)
 
-**Как добавлять новый цвет метода:** синий-якорь оставляй, подбирай `--s2` так, чтобы
-он **сочетался с белым и синим** и оставался минималистичным/нежным; затем **обязательно
-прогони валидатор** (§7) в light и dark и добавь слот `data-palette` в `viz.css`.
+**How to add a new method color:** keep the blue anchor, pick `--s2` so it **pairs with
+white and blue** and stays minimalist/soft; then **run the validator** (§7) in light and
+dark and add a `data-palette` slot in `viz.css`.
 
-| Токен | Роль | Где можно |
+| Token | Role | Where it's allowed |
 |---|---|---|
-| `--s1`, `--s2` | цвета **данных** | только точки/марки/ореолы данных |
-| `--accent` | мягкий индиго-акцент | слайдер, «маркер» области — **не данные** |
-| `--dot` | нейтральные точки «фон/прочее» | фон, не несущий смысла серии |
-| `--ink` / `--ink-2` / `--muted` | **текст** | заголовок / подпись / еле заметное |
-| `--line` | тонкие границы | рамка сцены, hairline |
-| `--surface` / `--plane` | поверхности | сцена / фон страницы |
+| `--s1`, `--s2` | **data** colors | only data points / marks / halos |
+| `--accent` | soft indigo accent | slider, region "marker" — **not data** |
+| `--dot` | neutral "background/other" points | background that carries no series meaning |
+| `--ink` / `--ink-2` / `--muted` | **text** | title / caption / faint |
+| `--line` | thin borders | stage frame, hairline |
+| `--surface` / `--plane` | surfaces | stage / page background |
 
-Правила:
-- **Текст никогда не красим в цвет серии** — только `--ink/--ink-2/--muted`.
-- Нужен новый метод/палитра → **добавь слот в `viz.css`** (блок `data-palette`),
-  не хардкодь hex в картинке. Больше двух категорий — следующий слот по гайду dataviz.
-- Идентичность серии — **не только цветом**: рядом всегда легенда (`viz-legend`)
-  с текстовой подписью. Так понятно и в ч/б, и при дальтонизме.
-- Все палитры проверены валидатором на дальтонизм и контраст (light + dark).
-  Меняешь/добавляешь цвет — прогони заново (см. §7).
+Rules:
+- **Never color text with a series color** — only `--ink/--ink-2/--muted`.
+- Need a new method/palette → **add a slot in `viz.css`** (a `data-palette` block),
+  don't hardcode hex in the visual. More than two categories — next slot per the dataviz guide.
+- Series identity is **not color alone**: a legend (`viz-legend`) with a text label
+  is always next to it. So it reads in grayscale and under color blindness.
+- All palettes are checked with the validator for color blindness and contrast (light + dark).
+  Change/add a color — re-run it (see §7).
 
-## 5. Шрифт — фиксированный
+## 5. Font — fixed
 
-Гарнитур — **Manrope** (лёгкий, изящный; кириллица + латиница), подключён через
-`@import` в `viz.css`, начертания 300/400/500/600. Токен `--font`, фолбэк — системный sans.
-Заголовок — **жирный** (`font-weight:700`); подпись/текст — обычный (`400`) и **чёрный** (`--ink`), не жирный. Размеры **только** из токенов, px в демках не пишем:
+Typeface — **Manrope** (light, elegant; Cyrillic + Latin), loaded via `@import` in
+`viz.css`, weights 300/400/500/600/700. Token `--font`, fallback — the system sans.
+Title is **bold** (`font-weight:700`); caption/text is regular (`400`) and **black**
+(`--ink`), not bold. Sizes **only** from tokens, no px in visuals:
 
-- `--fs-title` 23px — заголовок `h1` (bold)
-- `--fs-body` 18px — базовый текст и подпись под заголовком
-- `--fs-label` 16px — легенда, метки контролов
-- `--fs-value` 20px — числовые значения (с `tabular-nums`)
+- `--fs-title` 23px — `h1` title (bold)
+- `--fs-body` 18px — body text and the caption under the title
+- `--fs-label` 16px — legend, control labels
+- `--fs-value` 20px — numeric values (with `tabular-nums`)
 
-Меняем гарнитур/размер — **только** в `viz.css`, и он меняется везде разом.
+Change the typeface/size — **only** in `viz.css`, and it changes everywhere at once.
 
-## 6. Тема (свет/тёмная)
+## 6. Theme (light/dark)
 
-Тема переключается автоматически по настройке ОС (`prefers-color-scheme`) —
-за счёт токенов ничего в демке для этого делать не надо, только использовать `var(--…)`
-и `VIZ.css()` (canvas перерисуется сам). **Проверяй обе темы** перед коммитом.
+The theme switches automatically by the OS setting (`prefers-color-scheme`) — thanks to
+tokens you don't need to do anything in the visual, just use `var(--…)` and `VIZ.css()`
+(the canvas repaints itself). **Check both themes** before committing.
 
-## 7. Проверка палитры (если трогаешь цвета)
+## 7. Palette validation (when you touch colors)
 
-Прогони валидатор из гайда dataviz на новом наборе цветов данных, light и dark:
+Run the validator from the dataviz guide on the new set of data colors, light and dark:
 ```
 node scripts/validate_palette.js "#hex,#hex" --mode light
 node scripts/validate_palette.js "#hex,#hex" --mode dark
 ```
-Должно быть `ALL CHECKS PASS`. На глаз colorblind-safe не определяют.
+It must say `ALL CHECKS PASS`. Color-blind safety is not judged by eye.
 
-## 8. Встраивание в Stepik
+## 8. Embedding in Stepik
 
-Stepik вырезает `<script>` из HTML-редактора шага → интерактив вставляем **через iframe**
-(внешняя страница на GitHub Pages, внутри неё скрипты работают). По одной ссылке на язык:
+Stepik strips `<script>` from a step's HTML editor → embed the interactive **via an iframe**
+(an external page on GitHub Pages; scripts run inside it). One URL per language:
 
 ```html
-<iframe src="https://sadsabrina.github.io/xai-course-visual/density/two-clusters.ru.html"
+<iframe src="https://sadsabrina.github.io/xai-course-visual/density/two-clusters.en.html"
         width="640" height="560" style="border:0;max-width:100%"></iframe>
 ```
 
-- Ссылка обязательно `https` (иначе mixed-content блокируется).
-- Перенос/переименование файла меняет URL → поправь iframe в уже вставленных шагах.
-- В мобильном приложении Stepik iframe не всегда адаптивен — проверь высоту.
+- The URL must be `https` (otherwise mixed content is blocked).
+- Moving/renaming a file changes its URL → fix the iframe in steps you already embedded.
+- In the Stepik mobile app an iframe isn't always responsive — check the height.
 
-## 9. Чек-лист перед коммитом
+## 9. Pre-commit checklist
 
-- [ ] Файл в папке-теме, имя `kebab-case`, суффикс языка `.ru/.en`.
-- [ ] Есть обе языковые версии, отличаются только текстом.
-- [ ] Никаких hex/px в демке — всё через `var(--…)` / `VIZ.css()` и токены шрифта.
-- [ ] Цвета по ролям: данные — `--s1/--s2`, текст — `--ink*`, акцент — `--accent`.
-- [ ] Есть легенда с текстовыми подписями (идентичность не только цветом).
-- [ ] Проверено в светлой и тёмной теме; на узком экране не ломается.
-- [ ] Если менял цвета — валидатор `ALL CHECKS PASS` (light + dark).
+- [ ] File in a topic folder, `kebab-case` name, language suffix `.ru/.en`.
+- [ ] Both language versions exist and differ in text only.
+- [ ] No hex/px in the visual — everything via `var(--…)` / `VIZ.css()` and font tokens.
+- [ ] Colors by role: data — `--s1/--s2`, text — `--ink*`, accent — `--accent`.
+- [ ] A legend with text labels exists (identity not by color alone).
+- [ ] Checked in light and dark theme; doesn't break on a narrow screen.
+- [ ] If you changed colors — validator says `ALL CHECKS PASS` (light + dark).
 
-## 10. Памятка для генерирующей модели
+## 10. Note for the generating model
 
-Когда просят «сделать картинку для курса»: клади в папку-тему, делай сразу
-`.ru` и `.en`, подключай `../assets/viz.css` и `../assets/viz.js`, используй классы
-`viz-*` и хелперы `VIZ.*`, цвета — только токенами по ролям из §4, размеры шрифта —
-токенами из §5, ничего не хардкодь. Перед выдачей — отрендерь и посмотри в обеих темах.
+When asked to "make a visual for the course": put it in a topic folder, produce both
+`.ru` and `.en` at once, link `../assets/viz.css` and `../assets/viz.js`, use the
+`viz-*` classes and the `VIZ.*` helpers, colors only from tokens by role from §4, font
+sizes from tokens in §5, hardcode nothing. Before delivering — render it and look at it
+in both themes.
