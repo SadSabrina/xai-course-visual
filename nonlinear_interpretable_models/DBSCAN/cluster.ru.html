@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBSCAN: кластер и порядок обхода</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="density">
+  <div class="viz-head">
+    <h1>DBSCAN: кластер и граница</h1>
+    <p>Кластер — максимальное множество попарно плотностно-связанных точек. Нажимай «Разбить» с разным порядком обхода и смотри на точку X. minPts = 4, ε — радиус кругов.</p>
+  </div>
+
+  <div class="viz-tabs" id="tabs">
+    <button class="viz-tab active" data-tab="types">Типы точек</button>
+    <button class="viz-tab" data-tab="lr">Разбить: слева → направо</button>
+    <button class="viz-tab" data-tab="rl">Разбить: справа → налево</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:0 0 8px"></p>
+    <div class="viz-legend" id="legend"></div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+// --- сцена: два плотных кластера + общая граничная X + шум ---
+const CL = [[0.30,0.40],[0.30,0.64],[0.44,0.52],[0.50,0.38],[0.50,0.66],[0.60,0.52]]; // кластер 1
+const CR = [[1.40,0.40],[1.40,0.64],[1.26,0.52],[1.20,0.38],[1.20,0.66],[1.10,0.52]]; // кластер 2
+const XP = [0.85,0.52];           // граничная — в ε обоих ближних ядер
+const NZ = [0.85,0.95];           // шум
+const L_NEAR = CL[5], R_NEAR = CR[5];
+const BOX_W = 1.7, BOX_H = 1.05, EPS = 0.30;
+
+const CAP = {
+  types: 'Кластер — максимальное множество попарно плотностно-связанных точек. Ядровые (синие) — плотный центр; граничная X (оранжевая) достижима из ядра, но сама цепочку не продолжает; шум (серый) не входит ни в один кластер.',
+  lr:    'Обход слева направо: левое ядро дотянулось до X первым → X попадает в Кластер 1. Сплошная стрелка — кто «забрал» X; пунктирная — правое ядро тоже до неё дотягивалось, но опоздало.',
+  rl:    'Обход справа налево: теперь первым до X дотянулось правое ядро → X уходит в Кластер 2. Ядровые точки в обоих порядках в одних кластерах (воспроизводимо), а X меняет кластер — принадлежность границы зависит от порядка обхода.',
+};
+const LEG = {
+  types: [['--s1','Ядровые (core)'],['--s2','Граничная X (border)'],['--dot','Шум (noise)']],
+  lr:    [['--s1','Кластер 1'],['--s2','Кластер 2'],['--accent','X — граничная'],['--dot','Шум']],
+};
+LEG.rl = LEG.lr;
+
+let tab = 'types';
+const css = n => VIZ.css(n);
+const cap = document.getElementById('cap');
+const legend = document.getElementById('legend');
+
+const view = VIZ.mount(document.getElementById('c'), (ctx, W, H) => {
+  ctx.clearRect(0,0,W,H);
+  const pad = Math.min(W,H)*0.10;
+  const scale = Math.min((W-2*pad)/BOX_W, (H-2*pad)/BOX_H);
+  const ox = (W-BOX_W*scale)/2, oy = (H-BOX_H*scale)/2;
+  const map = p => [ox+p[0]*scale, oy+p[1]*scale];
+  const R = EPS*scale;
+  const dotR = Math.max(6, Math.min(W,H)*0.016);
+  const labelSize = Math.max(12, Math.min(W,H)*0.030);
+  const accent = css('--accent');
+
+  const epsRing = (p,color) => { const [x,y]=map(p);
+    VIZ.ring(ctx,x,y,R,color,{alpha:0.45,dash:[5,7],width:1.5,fill:VIZ.alpha(color,0.07)}); };
+  const arrowPt = (p,q,opts) => { const a=map(p), b=map(q);
+    VIZ.arrow(ctx,a[0],a[1],b[0],b[1],accent,
+      Object.assign({width:2.4,trim1:dotR+4,trim2:dotR+7,headSize:10},opts)); };
+  const disc = (p,color,o) => { o=o||{}; const [x,y]=map(p);
+    if(o.ring){ ctx.strokeStyle=o.ring; ctx.lineWidth=3; ctx.setLineDash(o.ringDash||[]);
+      ctx.beginPath(); ctx.arc(x,y,dotR+4,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke();
+    if(o.label){ ctx.fillStyle=css('--ink'); ctx.font=`600 ${labelSize}px system-ui, sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(o.label,x,y-dotR-3); }
+  };
+
+  if(tab==='types'){
+    epsRing(L_NEAR, css('--s1')); epsRing(R_NEAR, css('--s1'));   // намёк: X в ε обоих
+    CL.concat(CR).forEach(p => disc(p, css('--s1')));
+    disc(XP, css('--s2'), {label:'X', ring:accent, ringDash:[3,4]});
+    disc(NZ, css('--dot'), {label:'шум'});
+  } else {
+    const xInL = tab==='lr';
+    epsRing(L_NEAR, css('--s1')); epsRing(R_NEAR, css('--s2'));
+    // сплошная — забравший, пунктир — опоздавший
+    if(xInL){ arrowPt(L_NEAR, XP); arrowPt(R_NEAR, XP, {alpha:0.32, dash:[5,6], width:2}); }
+    else    { arrowPt(R_NEAR, XP); arrowPt(L_NEAR, XP, {alpha:0.32, dash:[5,6], width:2}); }
+    CL.forEach(p => disc(p, css('--s1')));   // Кластер 1 — синий (везде)
+    CR.forEach(p => disc(p, css('--s2')));   // Кластер 2 — оранжевый (везде)
+    disc(XP, xInL?css('--s1'):css('--s2'), {label:'X', ring:accent, ringDash:[3,4]});
+    disc(NZ, css('--dot'));
+  }
+});
+
+function setLegend(t){
+  legend.innerHTML = LEG[t].map(([v,label]) =>
+    `<span class="item"><span class="swatch" style="background:var(${v})"></span>${label}</span>`).join('');
+}
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('.viz-tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
+  cap.textContent = CAP[t];
+  setLegend(t);
+  view.redraw();
+}
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.viz-tab'); if(b) setTab(b.dataset.tab);
+});
+setTab('types');
+</script>
+</body>
+</html>

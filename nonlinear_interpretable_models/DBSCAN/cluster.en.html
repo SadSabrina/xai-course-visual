@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBSCAN: cluster & boundary</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="density">
+  <div class="viz-head">
+    <h1>DBSCAN: cluster &amp; boundary</h1>
+    <p>A cluster is a maximal set of pairwise density-connected points. Press “Split” with different traversal orders and watch point X. minPts = 4, ε is the circle radius.</p>
+  </div>
+
+  <div class="viz-tabs" id="tabs">
+    <button class="viz-tab active" data-tab="types">Point types</button>
+    <button class="viz-tab" data-tab="lr">Split: left → right</button>
+    <button class="viz-tab" data-tab="rl">Split: right → left</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:0 0 8px"></p>
+    <div class="viz-legend" id="legend"></div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+// --- scene: two dense clusters + a shared border X + noise ---
+const CL = [[0.30,0.40],[0.30,0.64],[0.44,0.52],[0.50,0.38],[0.50,0.66],[0.60,0.52]]; // cluster 1
+const CR = [[1.40,0.40],[1.40,0.64],[1.26,0.52],[1.20,0.38],[1.20,0.66],[1.10,0.52]]; // cluster 2
+const XP = [0.85,0.52];           // border — inside ε of both near cores
+const NZ = [0.85,0.95];           // noise
+const L_NEAR = CL[5], R_NEAR = CR[5];
+const BOX_W = 1.7, BOX_H = 1.05, EPS = 0.30;
+
+const CAP = {
+  types: 'A cluster is a maximal set of pairwise density-connected points. Core points (blue) are the dense center; border point X (orange) is reachable from a core but doesn’t extend the chain itself; noise (gray) belongs to no cluster.',
+  lr:    'Left-to-right pass: the left core reaches X first → X joins Cluster 1. The solid arrow shows who “claimed” X; the dashed one — the right core also reached it, but too late.',
+  rl:    'Right-to-left pass: now the right core reaches X first → X moves to Cluster 2. Core points land in the same clusters under both orders (reproducible), while X changes cluster — a border’s membership depends on the traversal order.',
+};
+const LEG = {
+  types: [['--s1','Core'],['--s2','Border X'],['--dot','Noise']],
+  lr:    [['--s1','Cluster 1'],['--s2','Cluster 2'],['--accent','X — border'],['--dot','Noise']],
+};
+LEG.rl = LEG.lr;
+
+let tab = 'types';
+const css = n => VIZ.css(n);
+const cap = document.getElementById('cap');
+const legend = document.getElementById('legend');
+
+const view = VIZ.mount(document.getElementById('c'), (ctx, W, H) => {
+  ctx.clearRect(0,0,W,H);
+  const pad = Math.min(W,H)*0.10;
+  const scale = Math.min((W-2*pad)/BOX_W, (H-2*pad)/BOX_H);
+  const ox = (W-BOX_W*scale)/2, oy = (H-BOX_H*scale)/2;
+  const map = p => [ox+p[0]*scale, oy+p[1]*scale];
+  const R = EPS*scale;
+  const dotR = Math.max(6, Math.min(W,H)*0.016);
+  const labelSize = Math.max(12, Math.min(W,H)*0.030);
+  const accent = css('--accent');
+
+  const epsRing = (p,color) => { const [x,y]=map(p);
+    VIZ.ring(ctx,x,y,R,color,{alpha:0.45,dash:[5,7],width:1.5,fill:VIZ.alpha(color,0.07)}); };
+  const arrowPt = (p,q,opts) => { const a=map(p), b=map(q);
+    VIZ.arrow(ctx,a[0],a[1],b[0],b[1],accent,
+      Object.assign({width:2.4,trim1:dotR+4,trim2:dotR+7,headSize:10},opts)); };
+  const disc = (p,color,o) => { o=o||{}; const [x,y]=map(p);
+    if(o.ring){ ctx.strokeStyle=o.ring; ctx.lineWidth=3; ctx.setLineDash(o.ringDash||[]);
+      ctx.beginPath(); ctx.arc(x,y,dotR+4,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]); }
+    ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x,y,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke();
+    if(o.label){ ctx.fillStyle=css('--ink'); ctx.font=`600 ${labelSize}px system-ui, sans-serif`;
+      ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(o.label,x,y-dotR-3); }
+  };
+
+  if(tab==='types'){
+    epsRing(L_NEAR, css('--s1')); epsRing(R_NEAR, css('--s1'));   // hint: X in ε of both
+    CL.concat(CR).forEach(p => disc(p, css('--s1')));
+    disc(XP, css('--s2'), {label:'X', ring:accent, ringDash:[3,4]});
+    disc(NZ, css('--dot'), {label:'noise'});
+  } else {
+    const xInL = tab==='lr';
+    epsRing(L_NEAR, css('--s1')); epsRing(R_NEAR, css('--s2'));
+    if(xInL){ arrowPt(L_NEAR, XP); arrowPt(R_NEAR, XP, {alpha:0.32, dash:[5,6], width:2}); }
+    else    { arrowPt(R_NEAR, XP); arrowPt(L_NEAR, XP, {alpha:0.32, dash:[5,6], width:2}); }
+    CL.forEach(p => disc(p, css('--s1')));   // Cluster 1 — blue (always)
+    CR.forEach(p => disc(p, css('--s2')));   // Cluster 2 — orange (always)
+    disc(XP, xInL?css('--s1'):css('--s2'), {label:'X', ring:accent, ringDash:[3,4]});
+    disc(NZ, css('--dot'));
+  }
+});
+
+function setLegend(t){
+  legend.innerHTML = LEG[t].map(([v,label]) =>
+    `<span class="item"><span class="swatch" style="background:var(${v})"></span>${label}</span>`).join('');
+}
+function setTab(t){
+  tab = t;
+  document.querySelectorAll('.viz-tab').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
+  cap.textContent = CAP[t];
+  setLegend(t);
+  view.redraw();
+}
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.viz-tab'); if(b) setTab(b.dataset.tab);
+});
+setTab('types');
+</script>
+</body>
+</html>
