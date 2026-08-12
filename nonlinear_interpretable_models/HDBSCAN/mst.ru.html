@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Минимальное остовное дерево: Крускал и Прим</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="shap">
+  <div class="viz-head">
+    <h1>Минимальное остовное дерево</h1>
+    <p>Мини-пример на 4 точках. Красным — рёбра MST, серым — отброшенные, индиго — рассматриваемое ребро. Жми «Шаг ▶».</p>
+  </div>
+
+  <div class="viz-tabs" id="tabs">
+    <button class="viz-tab active" data-tab="kru">Алгоритм Крускала</button>
+    <button class="viz-tab" data-tab="prim">Алгоритм Прима</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-row" style="gap:8px;margin-bottom:8px">
+      <button id="reset" class="viz-tab">⟲ Сброс</button>
+      <button id="next" class="viz-tab">Шаг ▶</button>
+      <span class="viz-label" id="stepinfo"></span>
+    </div>
+    <p id="cap" style="margin:0 0 8px"></p>
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>Рёбра MST</span>
+      <span class="item"><span class="swatch" style="background:var(--muted)"></span>Отброшенные</span>
+      <span class="item"><span class="swatch" style="background:var(--accent)"></span>Рассматриваем</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+// --- граф: 4 точки, координаты из урока ---
+const V = { A:[0,0], B:[1,0], C:[0,1.2], D:[3,0] };
+const E = [
+  {k:'A-B', u:'A', v:'B', w:1.00},
+  {k:'A-C', u:'A', v:'C', w:1.20},
+  {k:'B-C', u:'B', v:'C', w:1.56},
+  {k:'B-D', u:'B', v:'D', w:2.00},
+  {k:'A-D', u:'A', v:'D', w:3.00},
+  {k:'C-D', u:'C', v:'D', w:3.23},
+];
+const BOX_W = 3, BOX_H = 1.2;
+
+// --- шаги алгоритмов ---
+const KRU = [
+  {cap:'Рёбра отсортированы по весу: A–B 1.00, A–C 1.20, B–C 1.56, B–D 2.00, A–D 3.00, C–D 3.23. Идём от лёгкого к тяжёлому.'},
+  {cap:'A–B (1.00): цикла нет — добавляем.', mst:['A-B'], cur:'A-B'},
+  {cap:'A–C (1.20): добавляем — C присоединился.', mst:['A-B','A-C'], cur:'A-C'},
+  {cap:'B–C (1.56): A, B, C уже связаны — вышел бы цикл, пропускаем.', mst:['A-B','A-C'], drop:['B-C'], cur:'B-C'},
+  {cap:'B–D (2.00): добавляем — D присоединился. 3 ребра на 4 вершины — стоп.', mst:['A-B','A-C','B-D'], drop:['B-C'], cur:'B-D'},
+  {cap:'Готово: MST = {A–B, A–C, B–D}, суммарный вес 4.20. Отброшены B–C, A–D, C–D.', mst:['A-B','A-C','B-D'], drop:['B-C','A-D','C-D']},
+];
+const PRIM = [
+  {cap:'Стартуем с вершины A — у неё самое лёгкое ребро. Дерево: {A}.', tree:['A']},
+  {cap:'Из A самое лёгкое ребро — A–B (1.00). Добавляем B. Дерево: {A, B}.', mst:['A-B'], tree:['A','B'], cur:'A-B'},
+  {cap:'Из {A, B} самое лёгкое наружу — A–C (1.20). Добавляем C. Дерево: {A, B, C}.', mst:['A-B','A-C'], tree:['A','B','C'], cur:'A-C'},
+  {cap:'Из {A, B, C} самое лёгкое наружу — B–D (2.00). Добавляем D. Все вершины в дереве — стоп.', mst:['A-B','A-C','B-D'], tree:['A','B','C','D'], cur:'B-D'},
+  {cap:'Готово: MST = {A–B, A–C, B–D}, вес 4.20 — то же дерево, что и у Крускала.', mst:['A-B','A-C','B-D'], tree:['A','B','C','D'], drop:['B-C','A-D','C-D']},
+];
+
+let tab = 'kru', step = 0;
+const css = n => VIZ.css(n);
+const cap = document.getElementById('cap');
+const stepinfo = document.getElementById('stepinfo');
+const steps = () => tab==='kru' ? KRU : PRIM;
+
+const view = VIZ.mount(document.getElementById('c'), (ctx, W, H) => {
+  ctx.clearRect(0,0,W,H);
+  const pad = Math.min(W,H)*0.12;
+  const scale = Math.min((W-2*pad)/BOX_W, (H-2*pad)/BOX_H);
+  const ox = (W-BOX_W*scale)/2, oy = (H-BOX_H*scale)/2;
+  const map = id => [ox + V[id][0]*scale, oy + (BOX_H - V[id][1])*scale];  // y вверх
+  const dotR = Math.max(7, Math.min(W,H)*0.020);
+  const labelSize = Math.max(12, Math.min(W,H)*0.033);
+  const wSize = Math.max(11, Math.min(W,H)*0.028);
+  const s = steps()[step];
+  const st = e => (s.mst&&s.mst.includes(e.k)) ? 'mst'
+                : ((s.drop&&s.drop.includes(e.k)) ? 'drop' : 'pending');
+
+  // --- рёбра ---
+  E.forEach(e => {
+    const a=map(e.u), b=map(e.v), state=st(e), isCur = s.cur===e.k;
+    if(isCur){ ctx.strokeStyle=css('--accent'); ctx.globalAlpha=0.35; ctx.lineWidth=8;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.globalAlpha=1; }
+    if(state==='mst'){ ctx.strokeStyle=css('--s2'); ctx.lineWidth=3.4; ctx.setLineDash([]); ctx.globalAlpha=1; }
+    else if(state==='drop'){ ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.5; ctx.setLineDash([4,5]); ctx.globalAlpha=0.7; }
+    else { ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.globalAlpha=0.35; }
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+    // подпись веса (с обводкой для читаемости)
+    const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+    let dx=b[0]-a[0], dy=b[1]-a[1]; const L=Math.hypot(dx,dy)||1;
+    const px=-dy/L, py=dx/L;                       // перпендикуляр
+    const lx=mx+px*13, ly=my+py*13;
+    ctx.font=`600 ${wSize}px system-ui, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=3; ctx.strokeStyle=css('--surface'); ctx.strokeText(e.w.toFixed(2), lx, ly);
+    ctx.fillStyle = state==='mst'?css('--s2'):css('--muted'); ctx.fillText(e.w.toFixed(2), lx, ly);
+  });
+
+  // --- вершины ---
+  const tree = s.tree || [];
+  for(const id in V){ const [x,y]=map(id);
+    if(tree.includes(id)){ ctx.strokeStyle=css('--accent'); ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(x,y,dotR+4,0,2*Math.PI); ctx.stroke(); }
+    ctx.fillStyle=css('--s1'); ctx.beginPath(); ctx.arc(x,y,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke();
+    ctx.fillStyle=css('--ink'); ctx.font=`700 ${labelSize}px system-ui, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(id, x, y-dotR-4);
+  }
+});
+
+function render(){
+  const arr = steps();
+  step = Math.max(0, Math.min(step, arr.length-1));
+  cap.textContent = arr[step].cap;
+  stepinfo.textContent = `Шаг ${step+1} из ${arr.length}`;
+  document.getElementById('next').disabled = (step===arr.length-1);
+  view.redraw();
+}
+function setTab(t){ tab=t; step=0;
+  document.querySelectorAll('.viz-tab[data-tab]').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
+  render();
+}
+document.getElementById('tabs').addEventListener('click', e => {
+  const b=e.target.closest('.viz-tab[data-tab]'); if(b) setTab(b.dataset.tab);
+});
+document.getElementById('next').addEventListener('click', ()=>{ step++; render(); });
+document.getElementById('reset').addEventListener('click', ()=>{ step=0; render(); });
+render();
+</script>
+</body>
+</html>

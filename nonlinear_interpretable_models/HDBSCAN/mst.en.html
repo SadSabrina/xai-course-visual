@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minimum spanning tree: Kruskal &amp; Prim</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="shap">
+  <div class="viz-head">
+    <h1>Minimum spanning tree</h1>
+    <p>A tiny 4-point example. Red — MST edges, gray — discarded, indigo — the edge under consideration. Press “Step ▶”.</p>
+  </div>
+
+  <div class="viz-tabs" id="tabs">
+    <button class="viz-tab active" data-tab="kru">Kruskal’s algorithm</button>
+    <button class="viz-tab" data-tab="prim">Prim’s algorithm</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-row" style="gap:8px;margin-bottom:8px">
+      <button id="reset" class="viz-tab">⟲ Reset</button>
+      <button id="next" class="viz-tab">Step ▶</button>
+      <span class="viz-label" id="stepinfo"></span>
+    </div>
+    <p id="cap" style="margin:0 0 8px"></p>
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>MST edges</span>
+      <span class="item"><span class="swatch" style="background:var(--muted)"></span>Discarded</span>
+      <span class="item"><span class="swatch" style="background:var(--accent)"></span>Considering</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+// --- graph: 4 points, coordinates from the lesson ---
+const V = { A:[0,0], B:[1,0], C:[0,1.2], D:[3,0] };
+const E = [
+  {k:'A-B', u:'A', v:'B', w:1.00},
+  {k:'A-C', u:'A', v:'C', w:1.20},
+  {k:'B-C', u:'B', v:'C', w:1.56},
+  {k:'B-D', u:'B', v:'D', w:2.00},
+  {k:'A-D', u:'A', v:'D', w:3.00},
+  {k:'C-D', u:'C', v:'D', w:3.23},
+];
+const BOX_W = 3, BOX_H = 1.2;
+
+// --- algorithm steps ---
+const KRU = [
+  {cap:'Edges sorted by weight: A–B 1.00, A–C 1.20, B–C 1.56, B–D 2.00, A–D 3.00, C–D 3.23. Go from lightest to heaviest.'},
+  {cap:'A–B (1.00): no cycle — add it.', mst:['A-B'], cur:'A-B'},
+  {cap:'A–C (1.20): add it — C joins.', mst:['A-B','A-C'], cur:'A-C'},
+  {cap:'B–C (1.56): A, B, C are already connected — this would make a cycle, skip it.', mst:['A-B','A-C'], drop:['B-C'], cur:'B-C'},
+  {cap:'B–D (2.00): add it — D joins. 3 edges for 4 vertices — stop.', mst:['A-B','A-C','B-D'], drop:['B-C'], cur:'B-D'},
+  {cap:'Done: MST = {A–B, A–C, B–D}, total weight 4.20. Discarded B–C, A–D, C–D.', mst:['A-B','A-C','B-D'], drop:['B-C','A-D','C-D']},
+];
+const PRIM = [
+  {cap:'Start from vertex A — it has the lightest edge. Tree: {A}.', tree:['A']},
+  {cap:'From A the lightest edge is A–B (1.00). Add B. Tree: {A, B}.', mst:['A-B'], tree:['A','B'], cur:'A-B'},
+  {cap:'From {A, B} the lightest outgoing edge is A–C (1.20). Add C. Tree: {A, B, C}.', mst:['A-B','A-C'], tree:['A','B','C'], cur:'A-C'},
+  {cap:'From {A, B, C} the lightest outgoing edge is B–D (2.00). Add D. All vertices are in the tree — stop.', mst:['A-B','A-C','B-D'], tree:['A','B','C','D'], cur:'B-D'},
+  {cap:'Done: MST = {A–B, A–C, B–D}, weight 4.20 — the same tree as Kruskal.', mst:['A-B','A-C','B-D'], tree:['A','B','C','D'], drop:['B-C','A-D','C-D']},
+];
+
+let tab = 'kru', step = 0;
+const css = n => VIZ.css(n);
+const cap = document.getElementById('cap');
+const stepinfo = document.getElementById('stepinfo');
+const steps = () => tab==='kru' ? KRU : PRIM;
+
+const view = VIZ.mount(document.getElementById('c'), (ctx, W, H) => {
+  ctx.clearRect(0,0,W,H);
+  const pad = Math.min(W,H)*0.12;
+  const scale = Math.min((W-2*pad)/BOX_W, (H-2*pad)/BOX_H);
+  const ox = (W-BOX_W*scale)/2, oy = (H-BOX_H*scale)/2;
+  const map = id => [ox + V[id][0]*scale, oy + (BOX_H - V[id][1])*scale];  // y up
+  const dotR = Math.max(7, Math.min(W,H)*0.020);
+  const labelSize = Math.max(12, Math.min(W,H)*0.033);
+  const wSize = Math.max(11, Math.min(W,H)*0.028);
+  const s = steps()[step];
+  const st = e => (s.mst&&s.mst.includes(e.k)) ? 'mst'
+                : ((s.drop&&s.drop.includes(e.k)) ? 'drop' : 'pending');
+
+  E.forEach(e => {
+    const a=map(e.u), b=map(e.v), state=st(e), isCur = s.cur===e.k;
+    if(isCur){ ctx.strokeStyle=css('--accent'); ctx.globalAlpha=0.35; ctx.lineWidth=8;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.globalAlpha=1; }
+    if(state==='mst'){ ctx.strokeStyle=css('--s2'); ctx.lineWidth=3.4; ctx.setLineDash([]); ctx.globalAlpha=1; }
+    else if(state==='drop'){ ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.5; ctx.setLineDash([4,5]); ctx.globalAlpha=0.7; }
+    else { ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.5; ctx.setLineDash([]); ctx.globalAlpha=0.35; }
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha=1;
+    const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+    let dx=b[0]-a[0], dy=b[1]-a[1]; const L=Math.hypot(dx,dy)||1;
+    const px=-dy/L, py=dx/L;
+    const lx=mx+px*13, ly=my+py*13;
+    ctx.font=`600 ${wSize}px system-ui, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=3; ctx.strokeStyle=css('--surface'); ctx.strokeText(e.w.toFixed(2), lx, ly);
+    ctx.fillStyle = state==='mst'?css('--s2'):css('--muted'); ctx.fillText(e.w.toFixed(2), lx, ly);
+  });
+
+  const tree = s.tree || [];
+  for(const id in V){ const [x,y]=map(id);
+    if(tree.includes(id)){ ctx.strokeStyle=css('--accent'); ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(x,y,dotR+4,0,2*Math.PI); ctx.stroke(); }
+    ctx.fillStyle=css('--s1'); ctx.beginPath(); ctx.arc(x,y,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke();
+    ctx.fillStyle=css('--ink'); ctx.font=`700 ${labelSize}px system-ui, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(id, x, y-dotR-4);
+  }
+});
+
+function render(){
+  const arr = steps();
+  step = Math.max(0, Math.min(step, arr.length-1));
+  cap.textContent = arr[step].cap;
+  stepinfo.textContent = `Step ${step+1} of ${arr.length}`;
+  document.getElementById('next').disabled = (step===arr.length-1);
+  view.redraw();
+}
+function setTab(t){ tab=t; step=0;
+  document.querySelectorAll('.viz-tab[data-tab]').forEach(x=>x.classList.toggle('active', x.dataset.tab===t));
+  render();
+}
+document.getElementById('tabs').addEventListener('click', e => {
+  const b=e.target.closest('.viz-tab[data-tab]'); if(b) setTab(b.dataset.tab);
+});
+document.getElementById('next').addEventListener('click', ()=>{ step++; render(); });
+document.getElementById('reset').addEventListener('click', ()=>{ step=0; render(); });
+render();
+</script>
+</body>
+</html>
