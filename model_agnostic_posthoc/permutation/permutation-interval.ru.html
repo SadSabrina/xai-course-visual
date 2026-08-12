@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Важность как интервал</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="perm">
+  <div class="viz-head">
+    <h1>Важность как интервал</h1>
+    <p>Важность считается по конечной выборке и случайным перестановкам — значит у неё есть разброс. K перестановок дают распределение важности, по нему строят доверительный интервал. Больше K — уже интервал.</p>
+  </div>
+
+  <div class="viz-tabs" id="ks" style="align-items:center">
+    <span class="viz-label" style="margin-right:2px">K перестановок:</span>
+    <button class="viz-tab" data-k="5">5</button>
+    <button class="viz-tab active" data-k="20">20</button>
+    <button class="viz-tab" data-k="100">100</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>перестановки (по одной точке)</span>
+      <span class="item"><span class="swatch" style="background:color-mix(in srgb,var(--s2) 30%,transparent)"></span>95% интервал</span>
+      <span class="item"><span class="swatch" style="background:var(--ink)"></span>среднее</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const FEAT = ['площадь','комнаты','этаж'];
+const MEAN = [0.30, 0.14, 0.05];
+const SD   = [0.075, 0.055, 0.040];
+const XMAX = 0.45;
+let K = 20;
+let pts = [];
+function gen(){
+  pts = MEAN.map((m,i)=>Array.from({length:K},()=>({
+    val: Math.max(0, m + SD[i]*VIZ.gaussian()),
+    jit: Math.random()*2-1
+  })));
+}
+gen();
+
+const css=n=>VIZ.css(n);
+const view = VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const plotL=Math.max(96,W*0.16), plotR=W-24, plotT=18, plotB=H-34;
+  const xP=v=>plotL+(v/XMAX)*(plotR-plotL);
+  const amber=css('--s2'), ink=css('--ink'), muted=css('--muted');
+
+  // сетка X
+  ctx.font=`600 ${Math.max(10,Math.min(W,H)*0.024)}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let t=0;t<=0.4+1e-9;t+=0.1){ const x=xP(t);
+    ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(x,plotT); ctx.lineTo(x,plotB); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=muted; ctx.fillText(t.toFixed(1), x, plotB+6); }
+
+  const rowH=(plotB-plotT)/FEAT.length;
+  FEAT.forEach((name,i)=>{
+    const yc=plotT+(i+0.5)*rowH, half=rowH*0.30;
+    const se=1.96*SD[i]/Math.sqrt(K), lo=Math.max(0,MEAN[i]-se), hi=MEAN[i]+se;
+    // интервал
+    ctx.fillStyle=VIZ.alpha(amber,0.22);
+    const bx=xP(lo), bw=xP(hi)-xP(lo), bh=half*1.5;
+    ctx.beginPath(); ctx.roundRect(bx, yc-bh/2, Math.max(bw,2), bh, 6); ctx.fill();
+    // концы интервала
+    ctx.strokeStyle=amber; ctx.lineWidth=2;
+    [lo,hi].forEach(v=>{ const x=xP(v); ctx.beginPath(); ctx.moveTo(x,yc-bh/2); ctx.lineTo(x,yc+bh/2); ctx.stroke(); });
+    // точки-перестановки
+    ctx.fillStyle=VIZ.alpha(amber,0.75);
+    pts[i].forEach(p=>{ ctx.beginPath(); ctx.arc(xP(p.val), yc+p.jit*half, 3, 0, 2*Math.PI); ctx.fill(); });
+    // среднее
+    ctx.strokeStyle=ink; ctx.lineWidth=2.4;
+    ctx.beginPath(); ctx.moveTo(xP(MEAN[i]),yc-half*1.5); ctx.lineTo(xP(MEAN[i]),yc+half*1.5); ctx.stroke();
+    // подпись признака
+    ctx.fillStyle=ink; ctx.font=`700 ${Math.max(12,Math.min(W,H)*0.030)}px system-ui, sans-serif`;
+    ctx.textAlign='right'; ctx.textBaseline='middle'; ctx.fillText(name, plotL-12, yc);
+    // ширина интервала
+    ctx.fillStyle=muted; ctx.font=`600 ${Math.max(10,Math.min(W,H)*0.024)}px system-ui, sans-serif`;
+    ctx.textAlign='right'; ctx.fillText('±'+se.toFixed(3), plotR, yc-half*1.5);
+  });
+});
+
+document.getElementById('ks').addEventListener('click', e=>{
+  const b=e.target.closest('.viz-tab'); if(!b) return;
+  K=+b.dataset.k;
+  document.querySelectorAll('#ks .viz-tab').forEach(x=>x.classList.toggle('active',x===b));
+  gen(); view.redraw();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rashomon set</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="perm">
+  <div class="viz-head">
+    <h1>Rashomon set</h1>
+    <p>A set of different models with almost the same (good) quality: they all pass close to the data. But between the points they diverge — and such models can give different feature importances.</p>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>a set of near-equally-good models</span>
+      <span class="item"><span class="swatch" style="background:var(--ink)"></span>data</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const DX=[0.07,0.25,0.43,0.58,0.74,0.93];
+const DY=[0.32,0.58,0.40,0.66,0.48,0.70];
+const N=18, AMP=0.16;
+const MODELS = Array.from({length:N}, ()=> Array.from({length:DX.length-1}, ()=> VIZ.gaussian()*AMP));
+
+const css=n=>VIZ.css(n);
+VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const pad=Math.min(W,H)*0.14;
+  const map=(x,y)=>[pad+x*(W-2*pad), (H-pad)-y*(H-2*pad)];
+  const smooth=(ctrl,color,w,a)=>{
+    ctx.strokeStyle=color; ctx.lineWidth=w; ctx.globalAlpha=a; ctx.lineJoin='round';
+    ctx.beginPath(); ctx.moveTo(ctrl[0][0],ctrl[0][1]);
+    for(let i=1;i<ctrl.length-1;i++){ const xc=(ctrl[i][0]+ctrl[i+1][0])/2, yc=(ctrl[i][1]+ctrl[i+1][1])/2;
+      ctx.quadraticCurveTo(ctrl[i][0],ctrl[i][1],xc,yc); }
+    ctx.lineTo(ctrl[ctrl.length-1][0],ctrl[ctrl.length-1][1]); ctx.stroke(); ctx.globalAlpha=1;
+  };
+  const build=offs=>{ const c=[];
+    for(let i=0;i<DX.length;i++){ c.push(map(DX[i],DY[i]));
+      if(i<DX.length-1) c.push(map((DX[i]+DX[i+1])/2, (DY[i]+DY[i+1])/2 + (offs?offs[i]:0))); }
+    return c; };
+
+  const amber=css('--s2');
+  MODELS.forEach(offs=> smooth(build(offs), amber, 2, 0.20));
+  smooth(build(null), amber, 3, 0.9);
+
+  const dotR=Math.max(5,Math.min(W,H)*0.014);
+  DX.forEach((x,i)=>{ const [px,py]=map(x,DY[i]);
+    ctx.fillStyle=css('--ink'); ctx.beginPath(); ctx.arc(px,py,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke(); });
+});
+</script>
+</body>
+</html>

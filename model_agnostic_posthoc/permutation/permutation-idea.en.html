@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Permutation importance: the idea</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  body.viz{padding:16px}
+  .row2{display:grid; grid-template-columns:1.05fr 1fr; gap:16px; align-items:start}
+  @media (max-width:620px){ .row2{grid-template-columns:1fr} }
+  table.data{border-collapse:collapse; width:100%; font-variant-numeric:tabular-nums}
+  table.data th, table.data td{padding:6px 8px; text-align:center; font-size:14px}
+  table.data thead th{border-bottom:1.5px solid var(--line)}
+  table.data th button{appearance:none; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+    font:600 13px var(--font); padding:6px 8px; border-radius:8px; cursor:pointer; width:100%;}
+  table.data th button:hover{border-color:var(--s2)}
+  table.data th.on button{background:color-mix(in srgb, var(--s2) 22%, transparent); border-color:var(--s2)}
+  table.data td.on{background:color-mix(in srgb, var(--s2) 14%, transparent)}
+  .tag{display:block; font-size:11px; color:var(--s2); font-weight:600; margin-top:3px}
+  .panel{display:flex; flex-direction:column; gap:14px}
+  .q .lab{color:var(--ink-2); font-size:var(--fs-label)}
+  .q .val{font-size:22px; font-weight:700; font-variant-numeric:tabular-nums}
+  .q .drop{color:var(--s2); font-weight:600; font-size:15px}
+  .qbar{position:relative; height:14px; border-radius:7px; background:var(--line); margin-top:6px; overflow:hidden}
+  .qbar .cur{position:absolute; inset:0 auto 0 0; background:color-mix(in srgb, var(--s2) 78%, var(--surface)); border-radius:7px}
+  .imps .lab{color:var(--ink-2); font-size:var(--fs-label); margin-bottom:6px}
+  .bar{display:grid; grid-template-columns:104px 1fr 52px; align-items:center; gap:8px; margin:5px 0; font-size:14px}
+  .bar .name{color:var(--ink)}
+  .bar .track{height:16px; background:var(--line); border-radius:6px; overflow:hidden}
+  .bar .fill{display:block; height:100%; background:var(--s2); border-radius:6px; width:0}
+  .bar.dim{opacity:.4}
+  .bar .num{text-align:right; font-variant-numeric:tabular-nums; color:var(--ink)}
+  .ctrls{display:flex; gap:8px; margin:2px 0 12px}
+</style>
+</head>
+<body class="viz" data-palette="perm">
+  <div class="viz-head">
+    <h1>Permutation importance: the idea</h1>
+    <p>Shuffle the values of one feature (click its header) and see how much quality drops. How much it drops — that is the feature’s importance.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="all" class="viz-tab">Shuffle each</button>
+    <button id="reset" class="viz-tab">⟲ Reset</button>
+  </div>
+
+  <div class="row2">
+    <table class="data"><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table>
+    <div class="panel">
+      <div class="q">
+        <div class="lab">Model quality (accuracy)</div>
+        <div><span class="val" id="qval">0.92</span> <span class="drop" id="qdrop"></span></div>
+        <div class="qbar"><div class="cur" id="qcur"></div></div>
+      </div>
+      <div class="imps">
+        <div class="lab">Importance = how much quality dropped</div>
+        <div id="bars"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const F = [
+  {name:'area', imp:0.32},
+  {name:'rooms', imp:0.14},
+  {name:'floor', imp:0.05},
+  {name:'door color', imp:0.004},
+];
+const BASE = 0.92, MAXIMP = 0.32;
+const DATA = [[72,3,4,2],[54,2,1,5],[88,4,7,1],[41,1,2,4],[63,3,5,3],[95,4,9,2]];
+const PERM = [4,1,5,0,3,2];
+
+let shuffled = -1;
+const measured = new Set();
+const head=document.getElementById('head'), body=document.getElementById('body'), bars=document.getElementById('bars');
+
+function render(){
+  head.innerHTML = F.map((f,i)=>`<th class="${shuffled===i?'on':''}">`+
+    `<button data-f="${i}">${f.name}</button>`+
+    (shuffled===i?`<span class="tag">shuffled</span>`:``)+`</th>`).join('');
+  body.innerHTML = DATA.map((r,ri)=>`<tr>`+F.map((f,ci)=>{
+    const v = shuffled===ci ? DATA[PERM[ri]][ci] : r[ci];
+    return `<td class="${shuffled===ci?'on':''}">${v}</td>`;
+  }).join('')+`</tr>`).join('');
+  const cur = shuffled>=0 ? BASE - F[shuffled].imp : BASE;
+  document.getElementById('qval').textContent = cur.toFixed(2);
+  document.getElementById('qdrop').textContent = shuffled>=0 ? `↓ −${F[shuffled].imp.toFixed(2)} (shuffled “${F[shuffled].name}”)` : '';
+  document.getElementById('qcur').style.width = (cur*100).toFixed(1)+'%';
+  bars.innerHTML = F.map((f,i)=>{
+    const shown = measured.has(i);
+    const w = shown ? (f.imp/MAXIMP*100) : 0;
+    return `<div class="bar ${shown?'':'dim'}"><span class="name">${f.name}</span>`+
+      `<span class="track"><span class="fill" style="width:${w}%"></span></span>`+
+      `<span class="num">${shown?f.imp.toFixed(2):'—'}</span></div>`;
+  }).join('');
+  head.querySelectorAll('button').forEach(b=>b.onclick=()=>{ const i=+b.dataset.f; shuffled=i; measured.add(i); render(); });
+}
+document.getElementById('all').onclick=()=>{ F.forEach((_,i)=>measured.add(i)); shuffled=-1; render(); };
+document.getElementById('reset').onclick=()=>{ shuffled=-1; measured.clear(); render(); };
+render();
+</script>
+</body>
+</html>

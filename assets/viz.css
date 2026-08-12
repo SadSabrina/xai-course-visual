@@ -57,11 +57,13 @@
 .viz, .viz[data-palette="density"]{ --s1:#2a78d6; --s2:#eb6834; }  /* синий + оранжевый */
 .viz[data-palette="shap"]{          --s1:#2a78d6; --s2:#d9564e; }  /* синий ↔ красный */
 .viz[data-palette="lime"]{          --s1:#2a78d6; --s2:#2f9e5f; }  /* синий + зелёный */
+.viz[data-palette="perm"]{          --s1:#2a78d6; --s2:#eda100; }  /* синий + янтарный (permutation) */
 /* dark (свои шаги тех же цветов, в валидной зоне светлоты) */
 @media (prefers-color-scheme: dark){
   .viz, .viz[data-palette="density"]{ --s1:#3987e5; --s2:#d95926; }
   .viz[data-palette="shap"]{          --s1:#3987e5; --s2:#d95f57; }
   .viz[data-palette="lime"]{          --s1:#3987e5; --s2:#37a866; }
+  .viz[data-palette="perm"]{          --s1:#3987e5; --s2:#c98500; }
 }
 
 /* ============================================================
