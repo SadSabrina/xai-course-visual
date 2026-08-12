@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HDBSCAN on 7 points: four steps</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="shap">
+  <div class="viz-head">
+    <h1>HDBSCAN on 7 points</h1>
+    <p>The same points A–G (minPts = 4). Switch steps. The MST uses Prim’s algorithm (as in sklearn), “Step ▶”.</p>
+  </div>
+
+  <div class="viz-tabs" id="tabs">
+    <button class="viz-tab active" data-tab="core">1. Core distance</button>
+    <button class="viz-tab" data-tab="mreach">2. Mutual reachability</button>
+    <button class="viz-tab" data-tab="mst">3. MST (Prim)</button>
+    <button class="viz-tab" data-tab="dendro">4. Dendrogram</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-row" id="steprow" style="gap:8px;margin-bottom:8px;display:none">
+      <button id="reset" class="viz-tab">⟲ Reset</button>
+      <button id="next" class="viz-tab">Step ▶</button>
+      <span class="viz-label" id="stepinfo"></span>
+    </div>
+    <p id="cap" style="margin:0 0 8px"></p>
+    <div class="viz-legend" id="legend"></div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const P = { A:[-0.5,0.5], B:[0.5,0.5], C:[-0.5,-0.5], D:[0.5,-0.5], E:[0,0], F:[1.58,0], G:[6.84,0] };
+const DCORE = { A:1.00,B:1.00,C:1.00,D:1.00,E:0.71,F:1.58,G:6.36 };
+const IDS = ['A','B','C','D','E','F','G'];
+const XMIN=-0.5, XMAX=6.84, YMIN=-0.5, YMAX=0.5;
+
+const MST = [
+  {k:'A-B',u:'A',v:'B',w:1.00},
+  {k:'A-C',u:'A',v:'C',w:1.00},
+  {k:'A-E',u:'A',v:'E',w:1.00},
+  {k:'B-D',u:'B',v:'D',w:1.00},
+  {k:'B-F',u:'B',v:'F',w:1.58},
+  {k:'D-G',u:'D',v:'G',w:6.36},
+];
+const PRIM = [
+  {cap:'Start from A. Tree: {A}.', tree:['A'], n:0},
+  {cap:'Lightest outgoing edge — A–B (1.00). Tree: {A, B}.', tree:['A','B'], n:1, cur:'A-B'},
+  {cap:'Next A–C (1.00). Tree: {A, B, C}.', tree:['A','B','C'], n:2, cur:'A-C'},
+  {cap:'Next A–E (1.00). Tree: {A, B, C, E}.', tree:['A','B','C','E'], n:3, cur:'A-E'},
+  {cap:'Next B–D (1.00). The core {A,B,C,D,E} is assembled.', tree:['A','B','C','D','E'], n:4, cur:'B-D'},
+  {cap:'B–F (1.58) — the border point F attaches.', tree:['A','B','C','D','E','F'], n:5, cur:'B-F'},
+  {cap:'D–G (6.36) — the outlier G attaches last. Done: weight 11.94.', tree:['A','B','C','D','E','F','G'], n:6, cur:'D-G'},
+];
+
+const CAP = {
+  core:   'd_core — distance to the 4th neighbor (minPts=4), i.e. the radius of the circle reaching the 4th point. E is densest (0.71), A–D are 1.00, F is sparser (1.58), the lone G — a huge 6.36 (its circle runs off the edge).',
+  mreach: 'd_mreach(a,b) = max(d_core(a), d_core(b), d(a,b)). Inside the dense core nothing changes (A–B = 1.00), but edges to sparse points “swell”: B–F = 1.58, D–G = 6.36 — the lone G is pushed away by its own low density.',
+  mst:    'Minimum spanning tree over the d_mreach weights, greedily with Prim’s algorithm: grow the tree, each step adding the lightest outgoing edge.',
+  dendro: 'The sorted MST edges give a single-linkage dendrogram. The core {A–E} merges at 1.00, F joins at 1.58, and the outlier G only attaches at 6.36 — a giant jump. Cutting the longest edge separates G as noise; the stable cluster is {A,B,C,D,E,F}.',
+};
+const LEG = {
+  core:   [['--s1','Points'],['--accent','d_core circle']],
+  mreach: [['--muted','Edge = 1.00 (unchanged)'],['--s2','Swollen edge (d_core dominates)']],
+  mst:    [['--s2','MST edges'],['--muted','Not in tree yet'],['--accent','Tree / considering']],
+  dendro: [['--s1','Cluster {A–F}'],['--muted','Noise G'],['--accent','Cut']],
+};
+
+let tab='core', step=0;
+const css=n=>VIZ.css(n);
+const cap=document.getElementById('cap'), legend=document.getElementById('legend');
+const stepinfo=document.getElementById('stepinfo'), steprow=document.getElementById('steprow');
+
+const view = VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  if(tab==='dendro'){ drawDendro(ctx,W,H); return; }
+
+  const pad=Math.min(W,H)*0.13;
+  const scale=Math.min((W-2*pad)/(XMAX-XMIN),(H-2*pad)/(YMAX-YMIN));
+  const usableH=(YMAX-YMIN)*scale, oy=(H-usableH)/2;
+  const map=id=>[pad+(P[id][0]-XMIN)*scale, oy+(YMAX-P[id][1])*scale];
+  const dotR=Math.max(6,Math.min(W,H)*0.016);
+  const labelSize=Math.max(12,Math.min(W,H)*0.030);
+  const accent=css('--accent');
+  const s = tab==='mst' ? PRIM[step] : null;
+
+  if(tab==='core'){
+    IDS.forEach(id=>{ const [x,y]=map(id);
+      VIZ.ring(ctx,x,y,DCORE[id]*scale, accent, {alpha:0.5,dash:[5,6],width:1.6,fill:VIZ.alpha(accent,0.05)}); });
+  }
+  if(tab==='mreach'){
+    MST.forEach(e=>{ const a=map(e.u), b=map(e.v); const swell=e.w>1.001;
+      ctx.strokeStyle = swell?css('--s2'):css('--muted'); ctx.lineWidth = swell?3:1.8;
+      ctx.globalAlpha = swell?1:0.6; ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.globalAlpha=1;
+      edgeLabel(ctx,a,b,e.w.toFixed(2), swell?css('--s2'):css('--muted'), labelSize*0.82); });
+  }
+  if(tab==='mst'){
+    MST.forEach((e,i)=>{ const inTree = i < s.n; const isCur = e.k===s.cur;
+      const a=map(e.u), b=map(e.v);
+      if(isCur){ ctx.strokeStyle=accent; ctx.globalAlpha=0.35; ctx.lineWidth=8;
+        ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke(); ctx.globalAlpha=1; }
+      ctx.strokeStyle = inTree?css('--s2'):css('--muted'); ctx.lineWidth = inTree?3.2:1.5;
+      ctx.setLineDash(inTree?[]:[4,5]); ctx.globalAlpha = inTree?1:0.35;
+      ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.lineTo(b[0],b[1]); ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha=1;
+      if(inTree||isCur) edgeLabel(ctx,a,b,e.w.toFixed(2), inTree?css('--s2'):css('--muted'), labelSize*0.82); });
+  }
+
+  const tree = tab==='mst' ? s.tree : [];
+  IDS.forEach(id=>{ const [x,y]=map(id);
+    if(tree.includes(id)){ ctx.strokeStyle=accent; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(x,y,dotR+4,0,2*Math.PI); ctx.stroke(); }
+    ctx.fillStyle=css('--s1'); ctx.beginPath(); ctx.arc(x,y,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke();
+    ctx.fillStyle=css('--ink'); ctx.font=`700 ${labelSize}px system-ui, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(id, x, y-dotR-4);
+    if(tab==='core'){ ctx.fillStyle=css('--ink-2'); ctx.font=`600 ${labelSize*0.8}px system-ui, sans-serif`;
+      ctx.textBaseline='top'; ctx.fillText(DCORE[id].toFixed(2), x, y+dotR+3); }
+  });
+});
+
+function edgeLabel(ctx,a,b,text,color,size){
+  const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+  let dx=b[0]-a[0], dy=b[1]-a[1]; const L=Math.hypot(dx,dy)||1;
+  const lx=mx-dy/L*12, ly=my+dx/L*12;
+  ctx.font=`600 ${size}px system-ui, sans-serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.lineWidth=3; ctx.strokeStyle=css('--surface'); ctx.strokeText(text,lx,ly);
+  ctx.fillStyle=color; ctx.fillText(text,lx,ly);
+}
+
+function drawDendro(ctx,W,H){
+  const padL=Math.min(W,H)*0.18, padR=W*0.05, padT=Math.min(W,H)*0.09, padB=Math.min(W,H)*0.13;
+  const plotW=W-padL-padR, plotH=H-padT-padB, baseY=H-padB;
+  const HMAX=6.36*1.18;
+  const leafX = i => padL + (i+0.5)*(plotW/7);
+  const hY = h => baseY - (h/HMAX)*plotH;
+  const s1=css('--s1'), muted=css('--muted'), accent=css('--accent');
+  const line=(x1,y1,x2,y2,color,w)=>{ ctx.strokeStyle=color; ctx.lineWidth=w||2.4;
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); };
+
+  const xE = (leafX(0)+leafX(4))/2;
+  const xF = leafX(5), xEF=(xE+xF)/2;
+  const xG = leafX(6);
+
+  for(let i=0;i<5;i++) line(leafX(i),baseY, leafX(i),hY(1.00), s1);
+  line(leafX(0),hY(1.00), leafX(4),hY(1.00), s1);
+  line(xE,hY(1.00), xE,hY(1.58), s1);
+  line(xF,baseY, xF,hY(1.58), s1);
+  line(xE,hY(1.58), xF,hY(1.58), s1);
+  line(xEF,hY(1.58), xEF,hY(6.36), muted);
+  line(xG,baseY, xG,hY(6.36), muted);
+  line(xEF,hY(6.36), xG,hY(6.36), muted);
+
+  const hcut=3.6;
+  ctx.strokeStyle=accent; ctx.lineWidth=2; ctx.setLineDash([6,6]);
+  ctx.beginPath(); ctx.moveTo(padL,hY(hcut)); ctx.lineTo(W-padR,hY(hcut)); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=accent; ctx.font=`600 ${Math.max(11,Math.min(W,H)*0.026)}px system-ui, sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillText('cut', padL+4, hY(hcut)-3);
+
+  ctx.fillStyle=css('--ink-2'); ctx.font=`600 ${Math.max(10,Math.min(W,H)*0.024)}px system-ui, sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  [1.00,1.58,6.36].forEach(h=>{ ctx.fillText(h.toFixed(2), 4, hY(h));
+    ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.setLineDash([2,4]);
+    ctx.beginPath(); ctx.moveTo(padL,hY(h)); ctx.lineTo(W-padR,hY(h)); ctx.stroke(); ctx.setLineDash([]); });
+
+  ctx.font=`700 ${Math.max(12,Math.min(W,H)*0.030)}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  IDS.forEach((id,i)=>{ ctx.fillStyle = id==='G'?css('--ink-2'):css('--ink'); ctx.fillText(id, leafX(i), baseY+5); });
+}
+
+function setLegend(t){
+  legend.innerHTML = LEG[t].map(([v,l])=>
+    `<span class="item"><span class="swatch" style="background:var(${v})"></span>${l}</span>`).join('');
+}
+function render(){
+  cap.textContent = CAP[tab];
+  setLegend(tab);
+  if(tab==='mst'){ steprow.style.display='flex';
+    step=Math.max(0,Math.min(step,PRIM.length-1));
+    stepinfo.textContent=`Step ${step+1} of ${PRIM.length}`;
+    document.getElementById('next').disabled=(step===PRIM.length-1);
+    cap.textContent = PRIM[step].cap;
+  } else steprow.style.display='none';
+  view.redraw();
+}
+function setTab(t){ tab=t; step=0;
+  document.querySelectorAll('.viz-tab[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===t));
+  render();
+}
+document.getElementById('tabs').addEventListener('click',e=>{ const b=e.target.closest('.viz-tab[data-tab]'); if(b) setTab(b.dataset.tab); });
+document.getElementById('next').addEventListener('click',()=>{ step++; render(); });
+document.getElementById('reset').addEventListener('click',()=>{ step=0; render(); });
+setTab('core');
+</script>
+</body>
+</html>
