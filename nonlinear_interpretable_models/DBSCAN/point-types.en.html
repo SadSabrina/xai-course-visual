@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DBSCAN: point types</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="density">
+  <div class="viz-head">
+    <h1>DBSCAN: point types</h1>
+    <p>Switch tabs. Points are colored by type; a tab adds a relation between them. minPts = 3, ε is the circle radius.</p>
+  </div>
+
+  <div class="viz-tabs" id="tabs">
+    <button class="viz-tab active" data-tab="core">Core</button>
+    <button class="viz-tab" data-tab="direct">Directly reachable</button>
+    <button class="viz-tab" data-tab="reach">Density-reachable</button>
+    <button class="viz-tab" data-tab="connect">Density-connected</button>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:0 0 8px"></p>
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>Core</span>
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>Border</span>
+      <span class="item"><span class="swatch" style="background:var(--dot)"></span>Noise</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+// --- scene: 7 points in design coords (box 2.0 x 1.2), ε and minPts ---
+const P = [
+  {x:0.15, y:0.62, label:'A'}, // 0
+  {x:0.48, y:0.52, label:'B'}, // 1
+  {x:0.85, y:0.60, label:'C'}, // 2
+  {x:1.20, y:0.50, label:'D'}, // 3
+  {x:1.55, y:0.60, label:'E'}, // 4
+  {x:1.85, y:0.54, label:'F'}, // 5
+  {x:1.00, y:1.08, label:'G'}, // 6  (noise)
+];
+const BOX_W = 2.0, BOX_H = 1.2, EPS = 0.42, MINPTS = 3;
+
+// --- classify points by ε and minPts ---
+const dist = (a,b)=>Math.hypot(a.x-b.x, a.y-b.y);
+const nbrs = i => P.map((_,j)=>j).filter(j=>j!==i && dist(P[i],P[j])<EPS);
+P.forEach((p,i)=>{ p.core = nbrs(i).length+1 >= MINPTS; });   // |N_ε(p)| ≥ minPts (incl. itself)
+P.forEach((p,i)=>{
+  if(p.core) p.type='core';
+  else if(nbrs(i).some(j=>P[j].core)) p.type='border';
+  else p.type='noise';
+});
+
+// --- relations (point indices) ---
+const DIRECT_FROM = 2;                       // C
+const DIRECT_TO   = nbrs(2);                 // neighbors of C within ε (B, D)
+const REACH_CHAIN = [1,2,3,4,5];             // B→C→D→E→F (asymmetric)
+const CONN_CORE   = 2;                        // common core C
+const CONN_LEFT   = [2,1,0];                  // C→B→A
+const CONN_RIGHT  = [2,3,4,5];                // C→D→E→F
+
+const CAP = {
+  core:    'Core point: its ε-neighborhood holds at least minPts points. Blue — core, orange — border (inside another core’s ε but not dense enough on their own), gray — noise.',
+  direct:  'Directly reachable: a point inside a core’s ε-neighborhood. The arrow goes from the core C to its neighbors B and D.',
+  reach:   'Density-reachable: a chain of core points, each next one inside the previous one’s ε-neighborhood (overlapping circles, like ripples on water). Arrows go one way: you can’t go back from F — F is not a core. The relation is asymmetric.',
+  connect: 'Density-connected: A and F are DENSITY-reachable from a common core C — via chains of core points through their ε-neighborhoods (arrows from C). Hence A and F are connected, and the connection is symmetric (arc A↔F): swap them and nothing changes. Clustering rests on connectedness.',
+};
+
+let tab = 'core';
+const cap = document.getElementById('cap');
+const css = n => VIZ.css(n);
+
+const view = VIZ.mount(document.getElementById('c'), (ctx, W, H) => {
+  ctx.clearRect(0,0,W,H);
+  const pad = Math.min(W,H)*0.10;
+  const scale = Math.min((W-2*pad)/BOX_W, (H-2*pad)/BOX_H);
+  const ox = (W - BOX_W*scale)/2, oy = (H - BOX_H*scale)/2;
+  const map = p => [ox + p.x*scale, oy + p.y*scale];
+  const R = scale*EPS;
+  const dotR = Math.max(6, Math.min(W,H)*0.017);
+  const labelSize = Math.max(12, Math.min(W,H)*0.032);
+  const accent = css('--accent'), blue = css('--s1');
+
+  const epsRing = (i, color) => { const [x,y]=map(P[i]);
+    VIZ.ring(ctx, x, y, R, color, {alpha:0.45, dash:[5,7], width:1.5,
+      fill:VIZ.alpha(color,0.07), fillAlpha:1}); };
+  const link = (i,j,opts) => { const a=map(P[i]), b=map(P[j]);
+    VIZ.arrow(ctx, a[0],a[1], b[0],b[1], accent,
+      Object.assign({width:2.2, trim1:dotR+4, trim2:dotR+5, headSize:9}, opts)); };
+  // symmetric connection arc between two points (double arrow + label)
+  const connectArc = (i,j,lift,label) => {
+    const a=map(P[i]), b=map(P[j]);
+    a[1]-=dotR; b[1]-=dotR;
+    const midY=(a[1]+b[1])/2;
+    lift = Math.min(lift, midY - 26);                 // keep it inside the stage
+    const cx=(a[0]+b[0])/2, cy=midY - lift;
+    ctx.strokeStyle=accent; ctx.fillStyle=accent; ctx.lineWidth=2.2;
+    ctx.setLineDash([2,6]); ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(a[0],a[1]); ctx.quadraticCurveTo(cx,cy,b[0],b[1]); ctx.stroke();
+    ctx.setLineDash([]); ctx.lineCap='butt';
+    const head=(pt,dx,dy)=>{ const ang=Math.atan2(dy,dx), h=9;
+      ctx.beginPath(); ctx.moveTo(pt[0],pt[1]);
+      ctx.lineTo(pt[0]-h*Math.cos(ang-0.42), pt[1]-h*Math.sin(ang-0.42));
+      ctx.lineTo(pt[0]-h*Math.cos(ang+0.42), pt[1]-h*Math.sin(ang+0.42));
+      ctx.closePath(); ctx.fill(); };
+    head(b, b[0]-cx, b[1]-cy);
+    head(a, a[0]-cx, a[1]-cy);
+    ctx.fillStyle=css('--ink'); ctx.font=`600 ${Math.max(11,Math.min(W,H)*0.026)}px system-ui, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(label, cx, cy-4);
+  };
+
+  // --- relation layer (under points) ---
+  if(tab==='core'){
+    P.forEach((p,i)=>{ if(p.core) epsRing(i, blue); });
+  } else if(tab==='direct'){
+    epsRing(DIRECT_FROM, blue);
+    DIRECT_TO.forEach(j => link(DIRECT_FROM, j));
+  } else if(tab==='reach'){
+    REACH_CHAIN.forEach(i => { if(P[i].core) epsRing(i, blue); });
+    for(let k=0;k<REACH_CHAIN.length-1;k++) link(REACH_CHAIN[k], REACH_CHAIN[k+1]);
+  } else if(tab==='connect'){
+    [1,3,4].forEach(i => epsRing(i, blue));
+    epsRing(CONN_CORE, accent);
+    for(let k=0;k<CONN_LEFT.length-1;k++)  link(CONN_LEFT[k],  CONN_LEFT[k+1]);
+    for(let k=0;k<CONN_RIGHT.length-1;k++) link(CONN_RIGHT[k], CONN_RIGHT[k+1]);
+    connectArc(0, 5, scale*0.60, 'connected');
+  }
+
+  const hi = new Set(
+    tab==='direct'  ? [DIRECT_FROM, ...DIRECT_TO] :
+    tab==='reach'   ? REACH_CHAIN :
+    tab==='connect' ? [0,5, CONN_CORE] : []
+  );
+
+  // --- points on top ---
+  const colorFor = t => t==='core'?css('--s1') : t==='border'?css('--s2') : css('--dot');
+  P.forEach((p,i)=>{
+    const [x,y]=map(p);
+    if(hi.has(i)){ ctx.strokeStyle=accent; ctx.lineWidth=3;
+      ctx.beginPath(); ctx.arc(x,y,dotR+4,0,2*Math.PI); ctx.stroke(); }
+    ctx.fillStyle=colorFor(p.type);
+    ctx.beginPath(); ctx.arc(x,y,dotR,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle=css('--surface'); ctx.stroke();
+    ctx.fillStyle=css('--ink'); ctx.font=`600 ${labelSize}px system-ui, sans-serif`;
+    ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText(p.label, x, y-dotR-3);
+  });
+});
+
+// --- tabs ---
+cap.textContent = CAP[tab];
+document.getElementById('tabs').addEventListener('click', e => {
+  const b = e.target.closest('.viz-tab'); if(!b) return;
+  tab = b.dataset.tab;
+  document.querySelectorAll('.viz-tab').forEach(x=>x.classList.toggle('active', x===b));
+  cap.textContent = CAP[tab];
+  view.redraw();
+});
+</script>
+</body>
+</html>

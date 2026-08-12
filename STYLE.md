@@ -178,6 +178,7 @@ Step-by-step template with a copy-paste snippet: **[EMBED.md](EMBED.md)**.
 - [ ] File in a topic folder, `kebab-case` name, language suffix `.ru/.en`.
 - [ ] Both language versions exist and differ in text only.
 - [ ] No hex/px in the visual — everything via `var(--…)` / `VIZ.css()` and font tokens.
+- [ ] Assets linked by the **absolute** path `/xai-course-visual/assets/…`, not `../`.
 - [ ] Colors by role: data — `--s1/--s2`, text — `--ink*`, accent — `--accent`.
 - [ ] A legend with text labels exists (identity not by color alone).
 - [ ] Checked in light and dark theme; doesn't break on a narrow screen.
@@ -186,7 +187,8 @@ Step-by-step template with a copy-paste snippet: **[EMBED.md](EMBED.md)**.
 ## 10. Note for the generating model
 
 When asked to "make a visual for the course": put it in a topic folder, produce both
-`.ru` and `.en` at once, link `../assets/viz.css` and `../assets/viz.js`, use the
+`.ru` and `.en` at once, link assets by the **absolute** path
+`/xai-course-visual/assets/viz.css` and `…/viz.js` (never `../assets/…`), use the
 `viz-*` classes and the `VIZ.*` helpers, colors only from tokens by role from §4, font
 sizes from tokens in §5, hardcode nothing. Before delivering — render it and look at it
 in both themes.

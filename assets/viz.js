@@ -73,5 +73,42 @@ window.VIZ = (function(){
     }
   }
 
-  return { css, gaussian, mount, region, cloud, scatter, alpha };
+  // пунктирный контур круга (ε-окрестность). o: {width, alpha, dash, fill, fillAlpha}
+  function ring(ctx, x, y, r, color, o){
+    o = o || {};
+    if(o.fill){
+      ctx.fillStyle = o.fill; ctx.globalAlpha = o.fillAlpha==null?1:o.fillAlpha;
+      ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    ctx.strokeStyle = color; ctx.lineWidth = o.width||1.5;
+    ctx.globalAlpha = o.alpha==null?0.6:o.alpha;
+    ctx.setLineDash(o.dash||[5,6]);
+    ctx.beginPath(); ctx.arc(x,y,r,0,2*Math.PI); ctx.stroke();
+    ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+
+  // стрелка/линия между точками. o: {width, alpha, head ('end'|'both'|false), trim1, trim2, dash}
+  function arrow(ctx, x1, y1, x2, y2, color, o){
+    o = o || {};
+    const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
+    const ax=x1+ux*(o.trim1||0), ay=y1+uy*(o.trim1||0);
+    const bx=x2-ux*(o.trim2||0), by=y2-uy*(o.trim2||0);
+    const head = o.head===undefined ? 'end' : o.head;
+    const w = o.width||2, h = o.headSize||w*3.2;
+    ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=w;
+    ctx.globalAlpha = o.alpha==null?1:o.alpha;
+    if(o.dash) ctx.setLineDash(o.dash);
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.setLineDash([]);
+    const cap=(hx,hy,ang)=>{ ctx.beginPath(); ctx.moveTo(hx,hy);
+      ctx.lineTo(hx-h*Math.cos(ang-0.42), hy-h*Math.sin(ang-0.42));
+      ctx.lineTo(hx-h*Math.cos(ang+0.42), hy-h*Math.sin(ang+0.42));
+      ctx.closePath(); ctx.fill(); };
+    const ang=Math.atan2(by-ay,bx-ax);
+    if(head==='end'||head==='both') cap(bx,by,ang);
+    if(head==='both')               cap(ax,ay,ang+Math.PI);
+    ctx.globalAlpha=1;
+  }
+
+  return { css, gaussian, mount, region, cloud, scatter, alpha, ring, arrow };
 })();
