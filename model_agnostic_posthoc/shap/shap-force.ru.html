@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SHAP: линия вкладов (force plot)</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .eq{font-size:var(--fs-body); color:var(--ink); margin:2px 0 10px}
+  .eq b{font-weight:700}
+  .chips{display:flex; gap:8px; flex-wrap:wrap}
+  .chip{font-size:13px; padding:3px 10px; border-radius:999px; border:1px solid currentColor; white-space:nowrap}
+  .pos{color:var(--s2)} .neg{color:var(--s1)}
+  .chip .nm{color:var(--ink)}
+</style>
+</head>
+<body class="viz" data-palette="shap">
+  <div class="viz-head">
+    <h1>SHAP: линия вкладов (force plot)</h1>
+    <p>Вклад признака φᵢ толкает прогноз от базового значения E[f(x)] к f(x): <b style="color:var(--s2)">красные</b> увеличивают, <b style="color:var(--s1)">синие</b> уменьшают. База + сумма вкладов = прогноз.</p>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="eq" id="eq"></div>
+    <div class="chips" id="chips"></div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const BASE = 0.30;
+// признаки: значение и вклад φ (красные + увеличивают, синие − уменьшают)
+const FE = [
+  {name:'площадь', val:'78 м²',      phi:+0.22},
+  {name:'район',   val:'центр',      phi:+0.09},
+  {name:'год',     val:'1965',       phi:-0.10},
+  {name:'этаж',    val:'5',          phi:+0.04},
+  {name:'шум',     val:'высокий',    phi:-0.04},
+];
+const SUM = FE.reduce((s,f)=>s+f.phi,0);
+const FX = BASE + SUM;
+const POS = FE.filter(f=>f.phi>0).sort((a,b)=>b.phi-a.phi);
+const NEG = FE.filter(f=>f.phi<0).sort((a,b)=>a.phi-b.phi);
+const P = POS.reduce((s,f)=>s+f.phi,0);
+const NN = -NEG.reduce((s,f)=>s+f.phi,0);
+const D0 = FX - P - 0.05, D1 = FX + NN + 0.05;
+
+const css=n=>VIZ.css(n);
+VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const padX=Math.max(28,W*0.05);
+  const xP=v=>padX+(v-D0)/(D1-D0)*(W-2*padX);
+  const yc=H*0.40, h=Math.max(38,Math.min(H*0.20,58)), yTop=yc-h/2, yBot=yc+h/2, yMid=yc;
+  const red=css('--s2'), blue=css('--s1'), d=h*0.30;
+  const lineH=Math.max(15,Math.min(W,H)*0.032), tierGap=lineH*2+8;
+
+  const band=(x0,x1,color,dir)=>{
+    ctx.fillStyle=color; ctx.beginPath();
+    if(dir>0){ ctx.moveTo(x0,yTop); ctx.lineTo(x1,yTop); ctx.lineTo(x1+d,yMid); ctx.lineTo(x1,yBot);
+      ctx.lineTo(x0,yBot); ctx.lineTo(x0+d,yMid); }
+    else     { ctx.moveTo(x1,yTop); ctx.lineTo(x0,yTop); ctx.lineTo(x0-d,yMid); ctx.lineTo(x0,yBot);
+      ctx.lineTo(x1,yBot); ctx.lineTo(x1-d,yMid); }
+    ctx.closePath(); ctx.fill();
+  };
+  const lbl=(cx,name,val,phi,color,tier)=>{
+    const y0=yBot+8+tier*tierGap;
+    ctx.textAlign='center';
+    ctx.fillStyle=css('--ink'); ctx.font=`600 ${Math.max(11,Math.min(W,H)*0.026)}px system-ui, sans-serif`;
+    ctx.textBaseline='top'; ctx.fillText(`${name} = ${val}`, cx, y0);
+    ctx.fillStyle=color; ctx.font=`700 ${Math.max(11,Math.min(W,H)*0.026)}px system-ui, sans-serif`;
+    ctx.fillText((phi>0?'+':'−')+Math.abs(phi).toFixed(2), cx, y0+lineH);
+    // тонкий вывод к бару, если ярус нижний
+    if(tier>0){ ctx.strokeStyle=css('--line'); ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(cx,yBot+2); ctx.lineTo(cx,y0-2); ctx.stroke(); }
+  };
+
+  // красные (положительные) слева до f(x)
+  let x=FX-P;
+  POS.forEach((f,i)=>{ const x1=x+f.phi; band(xP(x),xP(x1),red,+1); lbl((xP(x)+xP(x1))/2,f.name,f.val,f.phi,red,i%2); x=x1; });
+  // синие (отрицательные) справа от f(x)
+  x=FX;
+  NEG.forEach((f,i)=>{ const w=-f.phi; const x1=x+w; band(xP(x),xP(x1),blue,-1); lbl((xP(x)+xP(x1))/2,f.name,f.val,f.phi,blue,(i+POS.length)%2); x=x1; });
+
+  // базовое значение
+  const xb=xP(BASE);
+  ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(xb,yTop-14); ctx.lineTo(xb,yBot); ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle=css('--ink-2'); ctx.font=`600 ${Math.max(11,Math.min(W,H)*0.026)}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(`база E[f(x)] = ${BASE.toFixed(2)}`, xb, yTop-16);
+
+  // f(x)
+  const xf=xP(FX);
+  ctx.strokeStyle=css('--ink'); ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.moveTo(xf,yTop-30); ctx.lineTo(xf,yBot+2); ctx.stroke();
+  ctx.fillStyle=css('--ink'); ctx.font=`800 ${Math.max(14,Math.min(W,H)*0.036)}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='bottom'; ctx.fillText(`f(x) = ${FX.toFixed(2)}`, xf, yTop-32);
+});
+
+// уравнение и чипы
+document.getElementById('eq').innerHTML =
+  `<b>${BASE.toFixed(2)}</b> (база) ${SUM>=0?'+':'−'} <b>${Math.abs(SUM).toFixed(2)}</b> (Σφ) = <b>${FX.toFixed(2)}</b> = f(x)`;
+document.getElementById('chips').innerHTML = FE.map(f=>
+  `<span class="chip ${f.phi>0?'pos':'neg'}"><span class="nm">${f.name} = ${f.val}</span> · ${(f.phi>0?'+':'−')+Math.abs(f.phi).toFixed(2)}</span>`).join('');
+</script>
+</body>
+</html>
