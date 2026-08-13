@@ -37,10 +37,6 @@
 </style>
 </head>
 <body class="viz" data-palette="anchors">
-  <div class="viz-head">
-    <h1>Distance across modalities</h1>
-    <p>A “small meaningful edit” means something different in each modality. An L-norm on raw coordinates (pixels, tokens) yields nonsense — the metric must encode what a human counts as a small change.</p>
-  </div>
 
   <div class="grid">
     <!-- 1. Таблицы -->
@@ -54,7 +50,6 @@
           <tr><td>debt</td><td>12k</td><td>12k</td></tr>
         </table>
       </div>
-      <div class="cap">L-norms are fine here. Change few features — <b>sparse</b> (the L₀ ideal is relaxed to convex L₁).</div>
       <span class="tag">L₁ · MAD / Gower</span>
     </div>
 
@@ -68,7 +63,6 @@
           <div>the review was <span class="ins">excellent</span></div>
         </div>
       </div>
-      <div class="cap">An element-wise norm is meaningless. “Small” = <b>fewest token edits</b>, with the text staying fluent and close in meaning.</div>
       <span class="tag">edit-distance + cos(emb.)</span>
     </div>
 
@@ -114,7 +108,6 @@
           </g>
         </svg>
       </div>
-      <div class="cap">Change a <b>semantic region / concept</b>, not pixels. A pixel-wise L₁/L₂ is an adversarial example, not an explanation.</div>
       <span class="tag">perceptual / latent space</span>
     </div>
 
@@ -142,7 +135,7 @@
                 font-weight="600" fill="var(--s2)">connected segment</text>
         </svg>
       </div>
-      <div class="cap">A point-wise Euclidean metric penalizes time shifts. Edit a <b>connected segment</b>; DTW aligns series by shape.</div>
+      <div class="cap">DTW aligns series by shape.</div>
       <span class="tag">DTW / segment edit</span>
     </div>
   </div>
