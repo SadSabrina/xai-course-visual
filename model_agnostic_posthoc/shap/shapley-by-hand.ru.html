@@ -45,9 +45,6 @@
     <h1>Считаем SHAP-значение сами: φ(cats)</h1>
     <p>Признаки N = {accounts_count, cats, photos}. Перебираем коалиции S без cats, на каждой берём вес, прирост Δ = v(S∪cats) − v(S) и их произведение. Сумма = значение Шепли для cats.</p>
   </div>
-
-  <div class="formula">Sh(cats) = Σ<sub>S ⊆ {acc, photos}</sub> &nbsp;[ |S|!·(n−|S|−1)! / n! ]·( v(S∪cats) − v(S) ),&nbsp; n = 3, n! = 6</div>
-
   <div class="ctrls">
     <button id="next" class="viz-tab">Шаг ▶</button>
     <button id="reset" class="viz-tab">⟲ Сброс</button>

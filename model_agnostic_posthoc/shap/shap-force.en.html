@@ -61,6 +61,7 @@ VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
     else     { ctx.moveTo(x1,yTop); ctx.lineTo(x0,yTop); ctx.lineTo(x0-d,yMid); ctx.lineTo(x0,yBot);
       ctx.lineTo(x1,yBot); ctx.lineTo(x1-d,yMid); }
     ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=css('--surface'); ctx.lineWidth=2; ctx.lineJoin='round'; ctx.stroke();
   };
   const lbl=(cx,name,val,phi,color,tier)=>{
     const y0=yBot+8+tier*tierGap;

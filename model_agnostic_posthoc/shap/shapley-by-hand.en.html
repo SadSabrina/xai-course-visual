@@ -43,9 +43,6 @@
     <h1>Compute a SHAP value by hand: φ(cats)</h1>
     <p>Features N = {accounts_count, cats, photos}. We enumerate coalitions S without cats; for each we take the weight, the gain Δ = v(S∪cats) − v(S), and their product. The sum = the Shapley value for cats.</p>
   </div>
-
-  <div class="formula">Sh(cats) = Σ<sub>S ⊆ {acc, photos}</sub> &nbsp;[ |S|!·(n−|S|−1)! / n! ]·( v(S∪cats) − v(S) ),&nbsp; n = 3, n! = 6</div>
-
   <div class="ctrls">
     <button id="next" class="viz-tab">Step ▶</button>
     <button id="reset" class="viz-tab">⟲ Reset</button>
