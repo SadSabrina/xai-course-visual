@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Расстояние под разные модальности</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  .cell{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+        box-shadow:var(--shadow); padding:16px 18px; display:flex; flex-direction:column; gap:11px; min-height:0}
+  .mtitle{font-weight:700; font-size:var(--fs-body); color:var(--ink);
+          display:flex; align-items:center; gap:10px; letter-spacing:-.01em}
+  .idx{width:24px; height:24px; border-radius:50%; background:var(--s2); color:#fff;
+       font-size:14px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto}
+  .illus{flex:1 1 auto; display:flex; align-items:center; justify-content:center; padding:2px 0}
+  .illus svg{width:100%; height:auto; max-height:150px}
+  .cap{color:var(--ink); font-size:var(--fs-label); line-height:1.45}
+  .tag{align-self:flex-start; font-size:13px; color:var(--s2); font-weight:600;
+       border:1px solid var(--s2); border-radius:999px; padding:3px 11px;
+       background:color-mix(in srgb, var(--s2) 8%, transparent)}
+  .chg{color:var(--s2); font-weight:700; background:color-mix(in srgb, var(--s2) 15%, transparent);
+       border-radius:6px; padding:1px 6px}
+  /* таблица */
+  .ftab{border-collapse:collapse; font-size:15px; margin:0 auto; font-variant-numeric:tabular-nums}
+  .ftab th{color:var(--ink-2); font-weight:600; font-size:13px; padding:3px 14px; text-align:right; border-bottom:1.5px solid var(--ink-2)}
+  .ftab th:first-child{text-align:left}
+  .ftab td{padding:5px 14px; text-align:right; color:var(--ink)}
+  .ftab td:first-child{text-align:left; color:var(--ink-2)}
+  .ftab tr+tr td{border-top:1px solid var(--line)}
+  /* текст */
+  .txt{display:flex; flex-direction:column; align-items:center; gap:5px; font-size:16px; color:var(--ink)}
+  .txt .del{text-decoration:line-through; color:var(--muted)}
+  .txt .ins{color:var(--s2); font-weight:700; background:color-mix(in srgb, var(--s2) 15%, transparent); border-radius:6px; padding:1px 6px}
+  .txt .ar{color:var(--s2); font-size:18px; line-height:1}
+  @media (max-width:640px){ .grid{grid-template-columns:1fr} }
+</style>
+</head>
+<body class="viz" data-palette="anchors">
+  <div class="viz-head">
+    <h1>Расстояние под разные модальности</h1>
+    <p>«Малая осмысленная правка» в каждой модальности своя. L-норма на сырые координаты (пиксели, токены) даёт бессмыслицу — метрика должна кодировать то, что человек считает маленьким изменением.</p>
+  </div>
+
+  <div class="grid">
+    <!-- 1. Таблицы -->
+    <div class="cell">
+      <div class="mtitle"><span class="idx">1</span>Таблицы</div>
+      <div class="illus">
+        <table class="ftab">
+          <tr><th>признак</th><th>x</th><th>x′</th></tr>
+          <tr><td>доход</td><td>40k</td><td class="chg">55k</td></tr>
+          <tr><td>возраст</td><td>34</td><td>34</td></tr>
+          <tr><td>долг</td><td>12k</td><td>12k</td></tr>
+        </table>
+      </div>
+      <div class="cap">Допустимы L-нормы. Меняем мало признаков — <b>разреженно</b> (идеал L₀ заменяют выпуклой L₁).</div>
+      <span class="tag">L₁ · MAD / Gower</span>
+    </div>
+
+    <!-- 2. Текст -->
+    <div class="cell">
+      <div class="mtitle"><span class="idx">2</span>Текст</div>
+      <div class="illus">
+        <div class="txt">
+          <div>the review was <span class="del">boring</span></div>
+          <div class="ar">↓</div>
+          <div>the review was <span class="ins">excellent</span></div>
+        </div>
+      </div>
+      <div class="cap">Поэлементная норма бессмысленна. «Мало» = <b>минимум правок токенов</b>, текст остаётся беглым и близким по смыслу.</div>
+      <span class="tag">edit-distance + cos(эмб.)</span>
+    </div>
+
+    <!-- 3. Картинки -->
+    <div class="cell">
+      <div class="mtitle"><span class="idx">3</span>Картинки</div>
+      <div class="illus">
+        <svg viewBox="0 0 230 132" role="img" aria-label="семантический регион вместо пикселей">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#cfe0f2"/><stop offset="1" stop-color="#eaf1f8"/>
+            </linearGradient>
+            <clipPath id="ph"><rect x="4" y="8" width="150" height="116" rx="10"/></clipPath>
+          </defs>
+          <!-- фото -->
+          <g clip-path="url(#ph)">
+            <rect x="4" y="8" width="150" height="116" fill="url(#sky)"/>
+            <rect x="4" y="86" width="150" height="38" fill="#cde0c4"/>
+            <circle cx="34" cy="38" r="13" fill="#f2c94c"/>
+            <!-- дерево = семантический объект -->
+            <rect x="98" y="70" width="7" height="30" fill="#9a6b45"/>
+            <ellipse cx="101" cy="62" rx="24" ry="21" fill="#7bb06a"/>
+          </g>
+          <rect x="4" y="8" width="150" height="116" rx="10" fill="none" stroke="var(--line)"/>
+          <!-- выделенный регион -->
+          <rect x="80" y="42" width="44" height="60" rx="7" fill="none"
+                stroke="var(--s2)" stroke-width="2.4" stroke-dasharray="6 4"/>
+          <text x="102" y="38" text-anchor="middle" font-family="Manrope,system-ui" font-size="11"
+                font-weight="700" fill="var(--s2)">регион</text>
+          <!-- инсет: пиксельный шум ≠ объяснение -->
+          <g transform="translate(168,20)">
+            <rect x="0" y="0" width="48" height="48" rx="6" fill="var(--plane)" stroke="var(--line)"/>
+            <g fill="var(--muted)">
+              <circle cx="7" cy="9" r="1.6"/><circle cx="18" cy="6" r="1.6"/><circle cx="30" cy="12" r="1.6"/>
+              <circle cx="41" cy="8" r="1.6"/><circle cx="11" cy="20" r="1.6"/><circle cx="25" cy="22" r="1.6"/>
+              <circle cx="38" cy="24" r="1.6"/><circle cx="6" cy="33" r="1.6"/><circle cx="20" cy="36" r="1.6"/>
+              <circle cx="33" cy="34" r="1.6"/><circle cx="43" cy="39" r="1.6"/><circle cx="14" cy="43" r="1.6"/>
+            </g>
+            <line x1="4" y1="4" x2="44" y2="44" stroke="#d9564e" stroke-width="2.4"/>
+            <line x1="44" y1="4" x2="4" y2="44" stroke="#d9564e" stroke-width="2.4"/>
+            <text x="24" y="61" text-anchor="middle" font-family="Manrope,system-ui" font-size="10.5"
+                  font-weight="600" fill="var(--muted)">пиксельный шум</text>
+          </g>
+        </svg>
+      </div>
+      <div class="cap">Меняем <b>семантический регион / понятие</b>, а не пиксели. Пиксельный L₁/L₂ — это состязательный пример, а не объяснение.</div>
+      <span class="tag">перцептивно / латентное простр.</span>
+    </div>
+
+    <!-- 4. Временные ряды -->
+    <div class="cell">
+      <div class="mtitle"><span class="idx">4</span>Временные ряды</div>
+      <div class="illus">
+        <svg viewBox="0 0 200 96" role="img" aria-label="правка связного отрезка ряда, DTW">
+          <!-- выделенный отрезок -->
+          <rect x="82" y="6" width="43.2" height="70" fill="color-mix(in srgb, var(--s2) 9%, transparent)"/>
+          <!-- ось -->
+          <line x1="10" y1="78" x2="190" y2="78" stroke="var(--line)" stroke-width="1"/>
+          <!-- DTW-выравнивание -->
+          <g stroke="var(--muted)" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.7">
+            <line x1="24.4" y1="28.4" x2="24.4" y2="28.4"/>
+            <line x1="110.8" y1="45.4" x2="110.8" y2="30.7"/>
+          </g>
+          <!-- исходный ряд -->
+          <path d="M10.0 38.3 L17.2 33.0 L24.4 28.4 L31.6 24.6 L38.8 21.8 L46.0 20.0 L53.2 19.3 L60.4 19.7 L67.6 21.3 L74.8 23.8 L82.0 27.1 L89.2 31.2 L96.4 35.7 L103.6 40.6 L110.8 45.4 L118.0 50.2 L125.2 54.6 L132.4 58.5 L139.6 61.7 L146.8 64.1 L154.0 65.7 L161.2 66.3 L168.4 66.1 L175.6 65.0 L182.8 63.2 L190.0 60.7"
+                fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- контрфактуал -->
+          <path d="M10.0 38.3 L17.2 33.0 L24.4 28.4 L31.6 24.6 L38.8 21.8 L46.0 20.0 L53.2 19.3 L60.4 19.7 L67.6 21.3 L74.8 23.8 L82.0 27.1 L89.2 22.7 L96.4 21.0 L103.6 23.6 L110.8 30.7 L118.0 41.7 L125.2 54.6 L132.4 58.5 L139.6 61.7 L146.8 64.1 L154.0 65.7 L161.2 66.3 L168.4 66.1 L175.6 65.0 L182.8 63.2 L190.0 60.7"
+                fill="none" stroke="var(--s2)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <text x="103.6" y="90" text-anchor="middle" font-family="Manrope,system-ui" font-size="10.5"
+                font-weight="600" fill="var(--s2)">связный отрезок</text>
+        </svg>
+      </div>
+      <div class="cap">Поточечная евклидова метрика штрафует сдвиг во времени. Правим <b>связный отрезок</b>; DTW выравнивает ряды по форме.</div>
+      <span class="tag">DTW / правка отрезка</span>
+    </div>
+  </div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>изменённая часть (x → x′)</span>
+      <span class="item">цель — осмысленный объект, а не шум на многообразии данных</span>
+    </div>
+  </div>
+</body>
+</html>

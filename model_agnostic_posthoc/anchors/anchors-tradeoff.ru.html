@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anchors: точность против покрытия</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="anchors">
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:460px"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>класс A — как у x</span>
+      <span class="item"><span class="swatch" style="background:#d9564e"></span>класс B — другой прогноз</span>
+      <span class="item"><span style="color:var(--ink);font-size:15px">★</span>&nbsp;объект x</span>
+      <span class="item"><span style="display:inline-block;width:14px;height:10px;border:2px solid var(--s2);border-radius:3px;vertical-align:middle"></span>&nbsp;правило A (область)</span>
+      <span class="item">порог τ = 0.90</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const RED='#d9564e', TAU=0.90;
+function mul(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function gauss(r){let u=0,v=0;while(!u)u=r();while(!v)v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+const bnd = x1 => 3.0 + 0.55*x1;
+const X=[5.0, 4.55], XCLS = X[1]>bnd(X[0]);      // false → класс A (синий)
+// возмущения вокруг x — генерим один раз (фиксированный seed)
+const SP=2.5, N=170, rnd=mul(7), PTS=[];
+for(let i=0;i<N;i++){ const a=X[0]+SP*gauss(rnd), b=X[1]+SP*gauss(rnd); PTS.push([a,b, b>bnd(a)]); }
+const PANELS=[
+  {hs:2.5, title:'широкое правило',  kind:'loose'},
+  {hs:1.45,title:'среднее правило',  kind:'anchor'},
+  {hs:0.8, title:'узкое правило',    kind:'tight'},
+].map(p=>{
+  let inside=0,same=0;
+  for(const[a,b,c]of PTS){ if(Math.abs(a-X[0])<=p.hs && Math.abs(b-X[1])<=p.hs){ inside++; if(c===XCLS)same++; } }
+  return {...p, prec:same/inside, cov:inside/N};
+});
+const css=n=>VIZ.css(n);
+const HALF=3.5;   // окно обзора вокруг x
+
+VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const outer=Math.min(W,H)*0.05;
+  const gap=W*0.028, capH=H*0.26;
+  const pw=(W-2*outer-2*gap)/3, ph=H-2*outer-capH;
+  PANELS.forEach((p,i)=>{
+    const px=outer+i*(pw+gap), py=outer;
+    drawPanel(ctx,px,py,pw,ph,capH,p);
+  });
+});
+
+function drawPanel(ctx,px,py,pw,ph,capH,p){
+  const anchor=p.kind==='anchor';
+  // подложка панели
+  ctx.fillStyle = anchor ? VIZ.alpha(css('--s2'),0.06) : css('--surface');
+  ctx.strokeStyle = anchor ? css('--s2') : css('--line');
+  ctx.lineWidth = anchor ? 2 : 1;
+  roundRect(ctx,px,py,pw,ph+capH,12); ctx.fill(); ctx.stroke();
+
+  // заголовок панели
+  const fsT=Math.max(12,pw*0.062);
+  ctx.fillStyle=css('--ink'); ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.font=`${anchor?700:600} ${fsT}px Manrope, system-ui, sans-serif`;
+  ctx.fillText(p.title, px+pw/2, py+ph*0.045);
+
+  // область графика
+  const gpad=pw*0.09, gx=px+gpad, gy=py+ph*0.20, gw=pw-2*gpad, gh=ph*0.72;
+  const xP=v=>gx+(v-(X[0]-HALF))/(2*HALF)*gw;
+  const yP=v=>gy+gh-(v-(X[1]-HALF))/(2*HALF)*gh;
+  ctx.save(); ctx.beginPath(); ctx.rect(gx,gy,gw,gh); ctx.clip();
+  // фон-регионы f
+  ctx.fillStyle=VIZ.alpha(css('--s1'),0.09); ctx.fillRect(gx,gy,gw,gh);
+  ctx.beginPath(); ctx.moveTo(xP(X[0]-HALF),yP(bnd(X[0]-HALF)));
+  ctx.lineTo(xP(X[0]+HALF),yP(bnd(X[0]+HALF)));
+  ctx.lineTo(gx+gw,gy); ctx.lineTo(gx,gy); ctx.closePath();
+  ctx.fillStyle=VIZ.alpha(RED,0.10); ctx.fill();
+  ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.2; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(xP(X[0]-HALF),yP(bnd(X[0]-HALF))); ctx.lineTo(xP(X[0]+HALF),yP(bnd(X[0]+HALF))); ctx.stroke();
+  ctx.setLineDash([]);
+  // точки
+  for(const[a,b,c]of PTS){
+    const inbox=Math.abs(a-X[0])<=p.hs && Math.abs(b-X[1])<=p.hs;
+    ctx.globalAlpha=inbox?0.95:0.28;
+    ctx.fillStyle=c?RED:css('--s1');
+    ctx.beginPath(); ctx.arc(xP(a),yP(b), inbox?3.1:2.4, 0,2*Math.PI); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  // рамка-правило A
+  const bx=xP(X[0]-p.hs), by=yP(X[1]+p.hs), bw=xP(X[0]+p.hs)-bx, bh=yP(X[1]-p.hs)-by;
+  const boxcol = anchor?css('--s2'):(p.kind==='loose'?RED:css('--muted'));
+  ctx.fillStyle=VIZ.alpha(boxcolHex(p),0.05); ctx.fillRect(bx,by,bw,bh);
+  ctx.strokeStyle=boxcol; ctx.lineWidth=anchor?2.4:1.8;
+  if(!anchor) ctx.setLineDash([5,4]);
+  roundRect(ctx,bx,by,bw,bh,4); ctx.stroke(); ctx.setLineDash([]);
+  // x — звезда
+  ctx.fillStyle=css('--ink'); ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`${Math.max(13,pw*0.075)}px system-ui, sans-serif`;
+  ctx.fillText('★', xP(X[0]), yP(X[1]));
+  ctx.restore();
+
+  // подпись prec / cov — распределяем по caption-полосе высотой capH
+  const base=py+ph, fsV=Math.max(13,pw*0.072), fsL=Math.max(10,pw*0.05);
+  const pass=p.prec>=TAU;
+  const midx=px+pw/2, colL=px+pw*0.30, colR=px+pw*0.70;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  // строка меток
+  ctx.font=`600 ${fsL}px Manrope, system-ui, sans-serif`; ctx.fillStyle=css('--ink-2');
+  ctx.fillText('prec', colL, base+capH*0.22);
+  ctx.fillText('cov',  colR, base+capH*0.22);
+  // строка значений
+  ctx.font=`700 ${fsV}px Manrope, system-ui, sans-serif`;
+  ctx.fillStyle = pass?css('--s2'):RED; ctx.fillText(p.prec.toFixed(2), colL, base+capH*0.52);
+  ctx.fillStyle = css('--ink');         ctx.fillText(p.cov.toFixed(2),  colR, base+capH*0.52);
+  // вердикт
+  const fsver=Math.max(11,pw*0.055);
+  ctx.font=`700 ${fsver}px Manrope, system-ui, sans-serif`;
+  if(anchor){ ctx.fillStyle=css('--s2'); ctx.fillText('✓ ЯКОРЬ', midx, base+capH*0.84); }
+  else if(p.kind==='loose'){ ctx.fillStyle=RED; ctx.fillText('✗ prec < τ', midx, base+capH*0.84); }
+  else { ctx.fillStyle=css('--muted'); ctx.fillText('избыточно узко', midx, base+capH*0.84); }
+}
+function boxcolHex(p){ return p.kind==='anchor'?css('--s2'):(p.kind==='loose'?RED:css('--muted')); }
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+</script>
+</body>
+</html>
