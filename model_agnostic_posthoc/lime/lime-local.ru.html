@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIME: локально — простой линией</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="lime">
+  <div class="viz-head">
+    <h2>LIME: глобально сложно — глобально просто</h2>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>класс A (f)</span>
+      <span class="item"><span class="swatch" style="background:#d9564e"></span>класс B (f)</span>
+      <span class="item"><span style="color:var(--ink);font-size:15px;line-height:1">★</span>&nbsp;объясняемый объект x</span>
+      <span class="item"><span class="swatch" style="background:color-mix(in srgb,var(--s2) 40%,transparent)"></span>окрестность π_x</span>
+      <span class="item"><span style="display:inline-block;width:16px;height:0;border-top:3px solid var(--s2);vertical-align:middle"></span>&nbsp;локальная модель g</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const RED='#d9564e';
+const b  = x => 5 + 1.5*Math.sin(0.8*x) + 0.9*Math.sin(1.7*x+0.6);   // граница f
+const db = x => 1.5*0.8*Math.cos(0.8*x) + 0.9*1.7*Math.cos(1.7*x+0.6);
+const X1=6.0, X2=b(6.0)+0.4;          // объясняемый объект (класс B)
+const SIG=1.55;                        // ширина окрестности π_x
+// возмущения вокруг x — генерим один раз
+const PTS = Array.from({length:70},()=>({
+  x1: X1 + SIG*VIZ.gaussian(), x2: X2 + SIG*VIZ.gaussian()
+}));
+const DOM=[0,10];
+const css=n=>VIZ.css(n);
+
+VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const pad=Math.min(W,H)*0.09;
+  const L=pad, R=W-pad, T=pad*0.7, Bt=H-pad*1.1;
+  const xP=v=>L+(v-DOM[0])/(DOM[1]-DOM[0])*(R-L);
+  const yP=v=>Bt-(v-DOM[0])/(DOM[1]-DOM[0])*(Bt-T);
+  const green=css('--s2'), blue=css('--s1'), ink=css('--ink');
+
+  // фон-регионы: сначала класс A целиком, потом класс B над границей
+  ctx.save(); ctx.beginPath(); ctx.rect(L,T,R-L,Bt-T); ctx.clip();
+  ctx.fillStyle=VIZ.alpha(blue,0.12); ctx.fillRect(L,T,R-L,Bt-T);
+  ctx.beginPath(); ctx.moveTo(xP(0),yP(b(0)));
+  for(let x=0;x<=10.001;x+=0.2) ctx.lineTo(xP(x),yP(b(x)));
+  ctx.lineTo(R,T); ctx.lineTo(L,T); ctx.closePath();
+  ctx.fillStyle=VIZ.alpha(RED,0.14); ctx.fill();
+  // сама граница
+  ctx.strokeStyle=css('--ink-2'); ctx.lineWidth=2; ctx.beginPath();
+  for(let x=0;x<=10.001;x+=0.2){ const px=xP(x),py=yP(b(x)); x===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save(); ctx.beginPath(); ctx.rect(L,T,R-L,Bt-T); ctx.clip();
+
+  // окрестность π_x — зелёный радиальный градиент
+  const cx=xP(X1), cy=yP(X2), rr=(xP(2*SIG)-xP(0));
+  const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rr);
+  g.addColorStop(0,VIZ.alpha(green,0.28)); g.addColorStop(1,VIZ.alpha(green,0));
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,rr,0,2*Math.PI); ctx.fill();
+  ctx.strokeStyle=VIZ.alpha(green,0.6); ctx.lineWidth=1.4; ctx.setLineDash([4,5]);
+  ctx.beginPath(); ctx.arc(cx,cy,rr,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
+
+  // возмущения: цвет по классу f, размер/непрозрачность по весу π_x
+  PTS.forEach(p=>{
+    const cls = p.x2 > b(p.x1);                 // true → класс B
+    const d2 = (p.x1-X1)**2 + (p.x2-X2)**2;
+    const wgt = Math.exp(-d2/(2*SIG*SIG));
+    const r = 2 + 3.4*wgt;
+    ctx.globalAlpha = 0.32 + 0.6*wgt;
+    ctx.fillStyle = cls?RED:blue;
+    ctx.beginPath(); ctx.arc(xP(p.x1),yP(p.x2),r,0,2*Math.PI); ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // локальная модель g — зелёная прямая (касательная к границе у x), в пределах π_x
+  const m=db(X1), x1c=X1;                         // прямая через (x1c,b(x1c)) со склоном m
+  const half=1.9*SIG;
+  const gx0=x1c-half, gx1=x1c+half;
+  ctx.strokeStyle=green; ctx.lineWidth=3.6; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(xP(gx0),yP(b(x1c)+m*(gx0-x1c))); ctx.lineTo(xP(gx1),yP(b(x1c)+m*(gx1-x1c))); ctx.stroke();
+  ctx.lineCap='butt';
+
+  // объясняемый объект x — звезда
+  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`${Math.max(16,Math.min(W,H)*0.04)}px system-ui, sans-serif`;
+  ctx.fillText('★', cx, cy);
+  ctx.fillStyle=css('--ink'); ctx.font=`700 ${Math.max(12,Math.min(W,H)*0.03)}px Manrope, system-ui, sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('x', cx+8, cy-6);
+  ctx.restore();
+
+  // подписи осей
+  ctx.fillStyle=css('--muted'); ctx.font=`500 ${Math.max(10,Math.min(W,H)*0.024)}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText('признак 1', (L+R)/2, Bt+6);
+  ctx.save(); ctx.translate(L-14,(T+Bt)/2); ctx.rotate(-Math.PI/2);
+  ctx.textBaseline='bottom'; ctx.fillText('признак 2', 0,0); ctx.restore();
+  // рамка
+  ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(L,T,R-L,Bt-T);
+});
+</script>
+</body>
+</html>
