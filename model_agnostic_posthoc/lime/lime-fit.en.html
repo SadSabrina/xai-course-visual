@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIME: how the local model g is trained</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .ctrls{display:flex; gap:8px; align-items:center; margin-bottom:10px}
+  .imp{margin-top:10px; display:none}
+  .imp.on{display:block}
+  .imp .h{color:var(--ink-2); font-size:var(--fs-label); margin-bottom:6px}
+  .bar{display:grid; grid-template-columns:92px 1fr 46px; align-items:center; gap:8px; margin:5px 0; font-size:14px}
+  .bar .name{color:var(--ink)}
+  .bar .track{height:15px; background:var(--line); border-radius:6px; overflow:hidden}
+  .bar .fill{display:block; height:100%; background:var(--s2); border-radius:6px}
+  .bar .num{text-align:right; font-variant-numeric:tabular-nums; color:var(--ink)}
+</style>
+</head>
+<body class="viz" data-palette="lime">
+  <div class="viz-head">
+    <h1>LIME: how the local model g is trained</h1>
+    <p>ξ(x) = argmin_g L(f, g, π_x) + Ω(g). We build g step by step: neighborhood → points z → weights π_x → training g → importances.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="next" class="viz-tab">Step ▶</button>
+    <button id="reset" class="viz-tab">⟲ Reset</button>
+    <span class="viz-label" id="stepinfo"></span>
+  </div>
+
+  <div class="viz-stage"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:8px 0 0"></p>
+    <div class="imp" id="imp">
+      <div class="h">Feature importance = weight in the trained g</div>
+      <div id="bars"></div>
+    </div>
+    <div class="viz-legend" style="margin-top:8px">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>class A (f)</span>
+      <span class="item"><span class="swatch" style="background:#d9564e"></span>class B (f)</span>
+      <span class="item"><span style="color:var(--ink);font-size:15px">★</span>&nbsp;instance x</span>
+      <span class="item"><span style="display:inline-block;width:16px;height:0;border-top:3px solid var(--s2);vertical-align:middle"></span>&nbsp;model g</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const RED='#d9564e';
+const b  = x => 5 + 1.5*Math.sin(0.8*x) + 0.9*Math.sin(1.7*x+0.6);
+const db = x => 1.5*0.8*Math.cos(0.8*x) + 0.9*1.7*Math.cos(1.7*x+0.6);
+const X1=6.0, X2=b(6.0)+0.4, HS=2.3, SIG=1.5, DOM=[0,10];
+// z points inside the π_x square — generated once
+const Z = Array.from({length:60},()=>({ x1:X1+(Math.random()*2-1)*HS, x2:X2+(Math.random()*2-1)*HS }));
+const CAP = {
+  1:'π_x sets a neighborhood — a square around x. Inside it we will "mold" similar points z.',
+  2:'Sample points z in the neighborhood and run them through model f — each gets an answer (class).',
+  3:'Weight by proximity: π_x(z) = exp(−D(x,z)²/σ²). Closer to x — heavier (bigger and brighter).',
+  4:'Train a simple g: minimize the weighted MSE Σ π_x(z)·(f(z)−g(z))². g is a line that mimics f near x.',
+  5:'Feature importance = the parameters (weights) of the trained g. The slope of g shows which feature matters more.',
+};
+let step=0;
+const css=n=>VIZ.css(n);
+const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo'),
+      imp=document.getElementById('imp'), bars=document.getElementById('bars');
+
+const view = VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const pad=Math.min(W,H)*0.09;
+  const L=pad,R=W-pad,T=pad*0.7,Bt=H-pad*1.1;
+  const xP=v=>L+(v-DOM[0])/(DOM[1]-DOM[0])*(R-L);
+  const yP=v=>Bt-(v-DOM[0])/(DOM[1]-DOM[0])*(Bt-T);
+  const green=css('--s2'), blue=css('--s1'), ink=css('--ink');
+
+  ctx.save(); ctx.beginPath(); ctx.rect(L,T,R-L,Bt-T); ctx.clip();
+  // f regions
+  ctx.fillStyle=VIZ.alpha(blue,0.12); ctx.fillRect(L,T,R-L,Bt-T);
+  ctx.beginPath(); ctx.moveTo(xP(0),yP(b(0)));
+  for(let x=0;x<=10.001;x+=0.2) ctx.lineTo(xP(x),yP(b(x)));
+  ctx.lineTo(R,T); ctx.lineTo(L,T); ctx.closePath(); ctx.fillStyle=VIZ.alpha(RED,0.14); ctx.fill();
+  ctx.strokeStyle=css('--ink-2'); ctx.lineWidth=2; ctx.beginPath();
+  for(let x=0;x<=10.001;x+=0.2){ const px=xP(x),py=yP(b(x)); x===0?ctx.moveTo(px,py):ctx.lineTo(px,py); } ctx.stroke();
+
+  // π_x neighborhood — square
+  if(step>=1){
+    const sx=xP(X1-HS), sy=yP(X2+HS), sw=xP(X1+HS)-sx, sh=yP(X2-HS)-sy;
+    if(step>=3){ const cx=xP(X1),cy=yP(X2),rr=(xP(SIG*1.6)-xP(0));
+      const g=ctx.createRadialGradient(cx,cy,0,cx,cy,rr);
+      g.addColorStop(0,VIZ.alpha(green,0.26)); g.addColorStop(1,VIZ.alpha(green,0));
+      ctx.fillStyle=g; ctx.fillRect(sx,sy,sw,sh);
+    } else { ctx.fillStyle=VIZ.alpha(green,0.07); ctx.fillRect(sx,sy,sw,sh); }
+    ctx.strokeStyle=VIZ.alpha(green,0.75); ctx.lineWidth=1.8; ctx.setLineDash([5,5]);
+    ctx.strokeRect(sx,sy,sw,sh); ctx.setLineDash([]);
+    ctx.fillStyle=green; ctx.font=`700 ${Math.max(11,Math.min(W,H)*0.026)}px Manrope, system-ui, sans-serif`;
+    ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillText('π_x', sx+4, sy-3);
+  }
+  // z points
+  if(step>=2){
+    Z.forEach(p=>{
+      const cls=p.x2>b(p.x1);
+      let r=3.4, a=0.85;
+      if(step>=3){ const d2=(p.x1-X1)**2+(p.x2-X2)**2; const w=Math.exp(-d2/(SIG*SIG));
+        r=2+3.6*w; a=0.3+0.62*w; }
+      ctx.globalAlpha=a; ctx.fillStyle=cls?RED:blue;
+      ctx.beginPath(); ctx.arc(xP(p.x1),yP(p.x2),r,0,2*Math.PI); ctx.fill();
+    });
+    ctx.globalAlpha=1;
+  }
+  // model g
+  if(step>=4){
+    const m=db(X1), gx0=X1-HS, gx1=X1+HS;
+    ctx.strokeStyle=green; ctx.lineWidth=3.6; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(xP(gx0),yP(b(X1)+m*(gx0-X1))); ctx.lineTo(xP(gx1),yP(b(X1)+m*(gx1-X1))); ctx.stroke();
+    ctx.lineCap='butt';
+    ctx.fillStyle=green; ctx.font=`700 ${Math.max(12,Math.min(W,H)*0.028)}px Manrope, system-ui, sans-serif`;
+    ctx.textAlign='left'; ctx.textBaseline='top'; ctx.fillText('g', xP(gx1)-14, yP(b(X1)+m*(gx1-X1))+4);
+  }
+  // instance x
+  const cx=xP(X1), cy=yP(X2);
+  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`${Math.max(16,Math.min(W,H)*0.04)}px system-ui, sans-serif`; ctx.fillText('★', cx, cy);
+  ctx.fillStyle=ink; ctx.font=`700 ${Math.max(12,Math.min(W,H)*0.03)}px Manrope, system-ui, sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='bottom'; ctx.fillText('x', cx+8, cy-6);
+  ctx.restore();
+
+  // axes
+  ctx.fillStyle=css('--muted'); ctx.font=`500 ${Math.max(10,Math.min(W,H)*0.024)}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top'; ctx.fillText('feature 1',(L+R)/2,Bt+6);
+  ctx.save(); ctx.translate(L-14,(T+Bt)/2); ctx.rotate(-Math.PI/2); ctx.textBaseline='bottom'; ctx.fillText('feature 2',0,0); ctx.restore();
+  ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(L,T,R-L,Bt-T);
+});
+
+function render(){
+  stepinfo.textContent = step===0 ? 'press "Step ▶"' : `Step ${step} of 5`;
+  cap.textContent = step===0 ? 'Let’s build the local model g around instance x step by step.' : CAP[step];
+  // importances at step 5
+  if(step>=5){ imp.classList.add('on');
+    const m=Math.abs(db(X1)); const w1=m/(m+1), w2=1/(m+1);
+    bars.innerHTML = [['feature 1',w1],['feature 2',w2]].map(([nm,w])=>
+      `<div class="bar"><span class="name">${nm}</span><span class="track"><span class="fill" style="width:${(w*100).toFixed(0)}%"></span></span><span class="num">${w.toFixed(2)}</span></div>`).join('');
+  } else imp.classList.remove('on');
+  document.getElementById('next').disabled = (step>=5);
+  view.redraw();
+}
+document.getElementById('next').onclick=()=>{ if(step<5){step++; render();} };
+document.getElementById('reset').onclick=()=>{ step=0; render(); };
+render();
+</script>
+</body>
+</html>
