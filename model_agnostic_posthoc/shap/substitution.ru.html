@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Как заполняется «неизвестный» признак при подсчёте v(S)</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+</head>
+<body class="viz" data-palette="shap">
+  <div class="viz-head">
+    <h1>Как заполняется «неизвестный» признак при подсчёте v(S)</h1>
+    <p>Известен рост, неизвестен вес. Маргинально вес берут независимо (подстановки уходят с облака), условно — при известном росте (остаются на облаке).</p>
+  </div>
+
+  <div class="viz-stage" style="aspect-ratio:auto"><canvas id="c" style="min-height:380px"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="viz-legend">
+      <span class="item"><span class="swatch" style="background:var(--dot)"></span>реальные данные</span>
+      <span class="item"><span style="color:var(--ink);font-size:15px;line-height:1">★</span>&nbsp;объясняемый объект x</span>
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>подстановка для «веса»</span>
+      <span class="item"><span style="color:var(--s2);font-weight:800">✕</span>&nbsp;нереалистичная подстановка</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+// облако данных (рост, вес) — коррелированное, генерим один раз
+const DATA = [];
+for(let i=0;i<260;i++){
+  let h = 172 + 11*VIZ.gaussian();
+  let w = 30 + 0.82*(h-140) + 6*VIZ.gaussian();
+  h = Math.max(142, Math.min(203, h)); w = Math.max(34, Math.min(105, w));
+  DATA.push([h,w]);
+}
+const STAR = [185, 88];
+const XDOM=[140,205], YDOM=[30,110];
+const PANELS = [
+  {title:['Маргинальный (независимо):','подстановки уходят с облака данных'],
+   red:[34,40,46,52,58,64,70,76,100,106], blue:[82,94]},
+  {title:['Условный:','подстановки остаются на облаке данных'],
+   red:[], blue:[80,83,85,87,89,91,94]},
+];
+const css=n=>VIZ.css(n);
+
+VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  PANELS.forEach((p,idx)=>drawPanel(ctx,W,H,idx,p));
+});
+
+function drawPanel(ctx,W,H,idx,p){
+  const x0=idx*(W/2), padL=W*0.065, padR=W*0.02, padT=H*0.16, padB=H*0.13;
+  const L=x0+padL, R=x0+W/2-padR, T=padT, B=H-padB;
+  const fs=Math.max(10,Math.min(W,H)*0.024);
+  const xP=v=>L+(v-XDOM[0])/(XDOM[1]-XDOM[0])*(R-L);
+  const yP=w=>B-(w-YDOM[0])/(YDOM[1]-YDOM[0])*(B-T);
+  const muted=css('--muted'), line=css('--line'), ink=css('--ink');
+
+  // заголовок панели
+  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='alphabetic';
+  ctx.font=`700 ${fs*1.12}px Manrope, system-ui, sans-serif`;
+  ctx.fillText(p.title[0], (L+R)/2, T-fs*2.0);
+  ctx.fillStyle=css('--ink-2'); ctx.font=`400 ${fs*1.0}px Manrope, system-ui, sans-serif`;
+  ctx.fillText(p.title[1], (L+R)/2, T-fs*0.7);
+
+  // сетка + оси
+  ctx.strokeStyle=line; ctx.lineWidth=1; ctx.fillStyle=muted;
+  ctx.font=`500 ${fs}px system-ui, sans-serif`;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let t=140;t<=200;t+=10){ const x=xP(t);
+    ctx.beginPath(); ctx.moveTo(x,T); ctx.lineTo(x,B); ctx.stroke();
+    ctx.fillText(t, x, B+5); }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(let t=40;t<=100;t+=10){ const y=yP(t);
+    ctx.beginPath(); ctx.moveTo(L,y); ctx.lineTo(R,y); ctx.stroke();
+    ctx.fillText(t, L-6, y); }
+  // рамка осей
+  ctx.strokeStyle=css('--ink-2'); ctx.lineWidth=1.2;
+  ctx.strokeRect(L,T,R-L,B-T);
+  // подписи осей
+  ctx.fillStyle=muted; ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.font=`500 ${fs}px system-ui, sans-serif`;
+  ctx.fillText('рост, см', (L+R)/2, B+fs*1.6);
+  ctx.save(); ctx.translate(L-fs*2.6,(T+B)/2); ctx.rotate(-Math.PI/2);
+  ctx.textBaseline='bottom'; ctx.fillText('вес, кг', 0,0); ctx.restore();
+
+  // данные
+  ctx.fillStyle=css('--dot');
+  DATA.forEach(([h,w])=>{ ctx.beginPath(); ctx.arc(xP(h),yP(w),2.4,0,2*Math.PI); ctx.fill(); });
+
+  // вертикаль на известном росте
+  ctx.strokeStyle=css('--muted'); ctx.lineWidth=1.4; ctx.setLineDash([5,5]);
+  ctx.beginPath(); ctx.moveTo(xP(STAR[0]),T); ctx.lineTo(xP(STAR[0]),B); ctx.stroke(); ctx.setLineDash([]);
+
+  // нереалистичные подстановки — красный X
+  ctx.strokeStyle=css('--s2'); ctx.lineWidth=2.2;
+  p.red.forEach(w=>{ const x=xP(STAR[0]), y=yP(w), r=4.6;
+    ctx.beginPath(); ctx.moveTo(x-r,y-r); ctx.lineTo(x+r,y+r); ctx.moveTo(x+r,y-r); ctx.lineTo(x-r,y+r); ctx.stroke(); });
+  // реалистичные подстановки — синие точки
+  ctx.fillStyle=css('--s1');
+  p.blue.forEach(w=>{ ctx.beginPath(); ctx.arc(xP(STAR[0]),yP(w),4.6,0,2*Math.PI); ctx.fill();
+    ctx.lineWidth=1.5; ctx.strokeStyle=css('--surface'); ctx.stroke(); });
+
+  // звезда — объясняемый объект
+  ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`${fs*1.7}px system-ui, sans-serif`;
+  ctx.fillText('★', xP(STAR[0]), yP(STAR[1]));
+
+  // аннотация с выноской
+  ctx.strokeStyle=css('--muted'); ctx.lineWidth=1;
+  const ax=xP(160), ay=yP(101);
+  ctx.beginPath(); ctx.moveTo(ax+fs*0.5,ay+fs*0.4); ctx.lineTo(xP(STAR[0])-8,yP(STAR[1])-6); ctx.stroke();
+  ctx.fillStyle=css('--ink-2'); ctx.font=`500 ${fs*0.95}px system-ui, sans-serif`;
+  ctx.textAlign='left'; ctx.textBaseline='bottom';
+  ctx.fillText('объясняемый объект x', ax, ay);
+  ctx.fillText('(рост известен, вес неизвестен)', ax, ay+fs*1.15);
+}
+</script>
+</body>
+</html>
