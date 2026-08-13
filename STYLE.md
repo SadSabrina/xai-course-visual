@@ -54,8 +54,8 @@ layout are identical. When you change logic — change **both** files (the price
 </head>
 <body class="viz" data-palette="density">
   <div class="viz-head">
-    <h1>Title</h1>
-    <p>Short caption — what to do and what is shown.</p>
+    <h3>Title (optional)</h3>
+    <p>Short caption — what to do and what is shown (optional).</p>
   </div>
 
   <div class="viz-stage"><canvas id="c"></canvas></div>

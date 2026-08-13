@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MAD as a scale</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .plot{display:flex; justify-content:center; align-items:center; height:100%; padding:6px}
+  .plot svg{width:100%; height:auto; max-width:640px}
+</style>
+</head>
+<body class="viz" data-palette="anchors">
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:250px">
+    <div class="plot">
+      <svg viewBox="0 36 680 230" role="img" aria-label="MAD as a scale: the same +1 step costs differently in units of spread">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--s2)"/>
+          </marker>
+          <marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 z" fill="var(--ink-2)"/>
+          </marker>
+        </defs>
+
+        <!-- ================= ЛЕВО: разброс признаков + шаг +1 ================= -->
+        <g font-family="Manrope, system-ui">
+          <!-- имена признаков -->
+          <text x="14" y="105" font-size="17" font-weight="700" fill="var(--ink)">age</text>
+          <text x="14" y="210" font-size="17" font-weight="700" fill="var(--ink)">salary</text>
+
+          <!-- ВОЗРАСТ: узкий разброс (MAD=5) -->
+          <rect x="178" y="77" width="54" height="46" rx="8" fill="color-mix(in srgb,var(--s2) 11%,transparent)" stroke="color-mix(in srgb,var(--s2) 40%,transparent)"/>
+          <g fill="color-mix(in srgb,var(--s2) 78%,transparent)"><circle cx="185.7" cy="92.8" r="2.6"/><circle cx="195.6" cy="82.0" r="2.6"/><circle cx="188.9" cy="105.7" r="2.6"/><circle cx="194.2" cy="104.0" r="2.6"/><circle cx="199.8" cy="91.7" r="2.6"/><circle cx="217.3" cy="92.3" r="2.6"/><circle cx="217.5" cy="100.7" r="2.6"/><circle cx="186.6" cy="113.2" r="2.6"/><circle cx="218.0" cy="108.0" r="2.6"/><circle cx="197.5" cy="91.8" r="2.6"/><circle cx="211.1" cy="102.1" r="2.6"/><circle cx="228.2" cy="110.5" r="2.6"/><circle cx="185.2" cy="86.3" r="2.6"/><circle cx="216.3" cy="107.7" r="2.6"/><circle cx="190.7" cy="98.6" r="2.6"/></g>
+          <line x1="205" y1="72" x2="205" y2="128" stroke="var(--ink-2)" stroke-width="1.6"/>
+          <text x="205" y="140" font-size="12.5" font-weight="600" fill="var(--ink-2)" text-anchor="middle">MAD = 5</text>
+          <!-- шаг +1 (одинаковая длина) -->
+          <line x1="205" y1="62" x2="223" y2="62" stroke="var(--s2)" stroke-width="3" marker-end="url(#ah)"/>
+          <text x="209" y="54" font-size="12.5" font-weight="700" fill="var(--s2)" text-anchor="middle"
+                stroke="var(--surface)" stroke-width="3" paint-order="stroke">+1 yr</text>
+
+          <!-- ЗАРПЛАТА: широкий разброс (MAD=20) -->
+          <rect x="95" y="182" width="220" height="46" rx="8" fill="color-mix(in srgb,var(--s2) 11%,transparent)" stroke="color-mix(in srgb,var(--s2) 40%,transparent)"/>
+          <g fill="color-mix(in srgb,var(--s2) 78%,transparent)"><circle cx="271.2" cy="205.1" r="2.6"/><circle cx="155.0" cy="199.7" r="2.6"/><circle cx="309.3" cy="212.9" r="2.6"/><circle cx="201.0" cy="202.7" r="2.6"/><circle cx="256.2" cy="206.9" r="2.6"/><circle cx="197.7" cy="212.3" r="2.6"/><circle cx="292.1" cy="190.2" r="2.6"/><circle cx="144.3" cy="198.7" r="2.6"/><circle cx="181.3" cy="204.8" r="2.6"/><circle cx="175.3" cy="199.9" r="2.6"/><circle cx="240.5" cy="208.6" r="2.6"/><circle cx="303.0" cy="199.1" r="2.6"/><circle cx="263.4" cy="206.4" r="2.6"/><circle cx="136.3" cy="211.6" r="2.6"/><circle cx="157.5" cy="195.0" r="2.6"/><circle cx="288.4" cy="219.0" r="2.6"/><circle cx="273.1" cy="208.2" r="2.6"/></g>
+          <line x1="205" y1="177" x2="205" y2="233" stroke="var(--ink-2)" stroke-width="1.6"/>
+          <text x="205" y="245" font-size="12.5" font-weight="600" fill="var(--ink-2)" text-anchor="middle">MAD = 20</text>
+          <!-- шаг +1 (та же длина, что у возраста) -->
+          <line x1="205" y1="167" x2="223" y2="167" stroke="var(--s2)" stroke-width="3" marker-end="url(#ah)"/>
+          <text x="211" y="159" font-size="12.5" font-weight="700" fill="var(--s2)" text-anchor="middle"
+                stroke="var(--surface)" stroke-width="3" paint-order="stroke">+1k</text>
+        </g>
+
+        <!-- ================= ТРАНСФОРМ ÷ MAD ================= -->
+        <g font-family="Manrope, system-ui">
+          <line x1="338" y1="150" x2="404" y2="150" stroke="var(--ink-2)" stroke-width="3" marker-end="url(#ai)"/>
+          <text x="371" y="138" font-size="16" font-weight="700" fill="var(--ink)" text-anchor="middle">÷ MADₖ</text>
+        </g>
+
+        <!-- ================= ПРАВО: стоимость шага в единицах разброса ================= -->
+        <g font-family="Manrope, system-ui">
+          <!-- ось-максимум -->
+          <line x1="430" y1="70" x2="430" y2="250" stroke="var(--line)" stroke-width="1.5"/>
+          <!-- возраст: 0.20 -->
+          <rect x="430" y="88" width="200" height="24" rx="6" fill="var(--line)"/>
+          <rect x="430" y="88" width="160" height="24" rx="6" fill="var(--s2)"/>
+          <text x="600" y="105" font-size="16" font-weight="700" fill="var(--s2)"
+                stroke="var(--surface)" stroke-width="3" paint-order="stroke">0.20</text>
+          <!-- зарплата: 0.05 -->
+          <rect x="430" y="193" width="200" height="24" rx="6" fill="var(--line)"/>
+          <rect x="430" y="193" width="40" height="24" rx="6" fill="var(--s2)"/>
+          <text x="480" y="210" font-size="16" font-weight="700" fill="var(--s2)">0.05</text>
+          <!-- подпись величины -->
+          <text x="530" y="252" font-size="14" font-weight="700" fill="var(--ink-2)" text-anchor="middle">|Δ| ÷ MADₖ</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>
