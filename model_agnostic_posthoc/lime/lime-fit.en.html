@@ -54,7 +54,7 @@ const CAP = {
   2:'Sample points z in the neighborhood and run them through model f — each gets an answer (class).',
   3:'Weight by proximity: π_x(z) = exp(−D(x,z)²/σ²). Closer to x — heavier (bigger and brighter).',
   4:'Train a simple g: minimize the weighted MSE Σ π_x(z)·(f(z)−g(z))². g is a line that mimics f near x.',
-  5:'Feature importance = the parameters (weights) of the trained g. The slope of g shows which feature matters more.',
+  5:'The slope of g shows which feature matters more.',
 };
 let step=0;
 const css=n=>VIZ.css(n);
