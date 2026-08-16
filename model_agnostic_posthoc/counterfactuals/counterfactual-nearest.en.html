@@ -29,7 +29,7 @@ const rnd=mul(58), BLUE=[], REDS=[];
 for(let i=0;i<120;i++){ const a=1+rnd()*8, b=0.5+rnd()*9; (b>bnd(a)?REDS:BLUE).push([a,b]); }
 const nearest = REDS.map(p=>({p,d:Math.hypot(p[0]-X[0],p[1]-X[1])})).sort((u,v)=>u.d-v.d);
 const CF1=nearest[0], CF2=nearest[1];
-const DX=[2.0,8.6], DY=[1.6,7.4];   // окно обзора
+const DX=[2.0,8.6], DY=[1.6,7.4];   // viewport
 const css=n=>VIZ.css(n);
 
 VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
@@ -41,18 +41,18 @@ VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
   const indigo=css('--s2'), blue=css('--s1'), ink=css('--ink');
 
   ctx.save(); ctx.beginPath(); ctx.rect(L,T,R-L,Bt-T); ctx.clip();
-  // регионы
+  // regions
   ctx.fillStyle=VIZ.alpha(blue,0.10); ctx.fillRect(L,T,R-L,Bt-T);
   ctx.beginPath(); ctx.moveTo(xP(DX[0]),yP(bnd(DX[0])));
   for(let x=DX[0];x<=DX[1]+0.01;x+=0.15) ctx.lineTo(xP(x),yP(bnd(x)));
   ctx.lineTo(R,T); ctx.lineTo(L,T); ctx.closePath();
   ctx.fillStyle=VIZ.alpha(RED,0.11); ctx.fill();
-  // граница
+  // boundary
   ctx.strokeStyle=css('--ink-2'); ctx.lineWidth=1.8; ctx.setLineDash([6,5]);
   ctx.beginPath();
   for(let x=DX[0];x<=DX[1]+0.01;x+=0.15){ const px=xP(x),py=yP(bnd(x)); x===DX[0]?ctx.moveTo(px,py):ctx.lineTo(px,py); }
   ctx.stroke(); ctx.setLineDash([]);
-  // подпись региона (с halo для читаемости поверх точек)
+  // region label, with a halo so it stays readable over the points
   ctx.font=`600 ${Math.max(11,Math.min(W,H)*0.026)}px Manrope, system-ui, sans-serif`;
   ctx.lineWidth=3.5; ctx.strokeStyle=css('--surface'); ctx.lineJoin='round';
   ctx.textAlign='left'; ctx.textBaseline='top';
@@ -62,21 +62,21 @@ VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
   ctx.strokeText('class A (y)', xP(DX[0])+8, yP(DY[0])-6);
   ctx.fillStyle=VIZ.alpha(blue,0.95); ctx.fillText('class A (y)', xP(DX[0])+8, yP(DY[0])-6);
 
-  // окружность «ближайший» через CF1
+  // the "nearest" circle through CF1
   const cx=xP(X[0]), cy=yP(X[1]);
   const rr=Math.hypot(xP(CF1.p[0])-cx, yP(CF1.p[1])-cy);
   ctx.strokeStyle=VIZ.alpha(indigo,0.35); ctx.lineWidth=1.3; ctx.setLineDash([3,4]);
   ctx.beginPath(); ctx.arc(cx,cy,rr,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]);
 
-  // точки
+  // points
   ctx.fillStyle=blue; for(const[a,b]of BLUE){ ctx.beginPath(); ctx.arc(xP(a),yP(b),3,0,2*Math.PI); ctx.fill(); }
   ctx.fillStyle=RED;  for(const[a,b]of REDS){ ctx.beginPath(); ctx.arc(xP(a),yP(b),3,0,2*Math.PI); ctx.fill(); }
 
-  // стрелки-действия
+  // action arrows
   VIZ.arrow(ctx, cx,cy, xP(CF1.p[0]),yP(CF1.p[1]), indigo, {width:2.8, trim2:11, headSize:11});
   VIZ.arrow(ctx, cx,cy, xP(CF2.p[0]),yP(CF2.p[1]), indigo, {width:1.8, trim2:10, headSize:9, dash:[5,4], alpha:0.6});
 
-  // маркеры CF
+  // CF markers
   const mark=(cf,primary,label)=>{
     const mx=xP(cf.p[0]), my=yP(cf.p[1]);
     ctx.beginPath(); ctx.arc(mx,my, primary?7:6, 0,2*Math.PI);
@@ -93,7 +93,7 @@ VIZ.mount(document.getElementById('c'), (ctx,W,H)=>{
   mark(CF2,false,'CF₂');
   mark(CF1,true,'CF₁');
 
-  // объект x — звезда
+  // the object x is the star marker
   ctx.fillStyle=ink; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.font=`${Math.max(17,Math.min(W,H)*0.042)}px system-ui, sans-serif`; ctx.fillText('★', cx, cy);
   ctx.font=`700 ${Math.max(13,Math.min(W,H)*0.032)}px Manrope, system-ui, sans-serif`;

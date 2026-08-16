@@ -21,14 +21,14 @@
        background:color-mix(in srgb, var(--s2) 8%, transparent)}
   .chg{color:var(--s2); font-weight:700; background:color-mix(in srgb, var(--s2) 15%, transparent);
        border-radius:6px; padding:1px 6px}
-  /* таблица */
+  /* table */
   .ftab{border-collapse:collapse; font-size:15px; margin:0 auto; font-variant-numeric:tabular-nums}
   .ftab th{color:var(--ink-2); font-weight:600; font-size:13px; padding:3px 14px; text-align:right; border-bottom:1.5px solid var(--ink-2)}
   .ftab th:first-child{text-align:left}
   .ftab td{padding:5px 14px; text-align:right; color:var(--ink)}
   .ftab td:first-child{text-align:left; color:var(--ink-2)}
   .ftab tr+tr td{border-top:1px solid var(--line)}
-  /* текст */
+  /* text */
   .txt{display:flex; flex-direction:column; align-items:center; gap:5px; font-size:16px; color:var(--ink)}
   .txt .del{text-decoration:line-through; color:var(--muted)}
   .txt .ins{color:var(--s2); font-weight:700; background:color-mix(in srgb, var(--s2) 15%, transparent); border-radius:6px; padding:1px 6px}
@@ -39,7 +39,7 @@
 <body class="viz" data-palette="anchors">
 
   <div class="grid">
-    <!-- 1. Таблицы -->
+    <!-- 1. Tables -->
     <div class="cell">
       <div class="mtitle"><span class="idx">1</span>Tables</div>
       <div class="illus">
@@ -53,7 +53,7 @@
       <span class="tag">L₁ · MAD / Gower</span>
     </div>
 
-    <!-- 2. Текст -->
+    <!-- 2. Text -->
     <div class="cell">
       <div class="mtitle"><span class="idx">2</span>Text</div>
       <div class="illus">
@@ -66,7 +66,7 @@
       <span class="tag">edit-distance + cos(emb.)</span>
     </div>
 
-    <!-- 3. Картинки -->
+    <!-- 3. Images -->
     <div class="cell">
       <div class="mtitle"><span class="idx">3</span>Images</div>
       <div class="illus">
@@ -77,22 +77,22 @@
             </linearGradient>
             <clipPath id="ph"><rect x="4" y="8" width="150" height="116" rx="10"/></clipPath>
           </defs>
-          <!-- фото -->
+          <!-- photo -->
           <g clip-path="url(#ph)">
             <rect x="4" y="8" width="150" height="116" fill="url(#sky)"/>
             <rect x="4" y="86" width="150" height="38" fill="#cde0c4"/>
             <circle cx="34" cy="38" r="13" fill="#f2c94c"/>
-            <!-- дерево = семантический объект -->
+            <!-- tree = a semantic object -->
             <rect x="98" y="70" width="7" height="30" fill="#9a6b45"/>
             <ellipse cx="101" cy="62" rx="24" ry="21" fill="#7bb06a"/>
           </g>
           <rect x="4" y="8" width="150" height="116" rx="10" fill="none" stroke="var(--line)"/>
-          <!-- выделенный регион -->
+          <!-- highlighted region -->
           <rect x="80" y="42" width="44" height="60" rx="7" fill="none"
                 stroke="var(--s2)" stroke-width="2.4" stroke-dasharray="6 4"/>
           <text x="102" y="38" text-anchor="middle" font-family="Manrope,system-ui" font-size="11"
                 font-weight="700" fill="var(--s2)">region</text>
-          <!-- инсет: пиксельный шум ≠ объяснение -->
+          <!-- inset: pixel noise is not an explanation -->
           <g transform="translate(168,20)">
             <rect x="0" y="0" width="48" height="48" rx="6" fill="var(--plane)" stroke="var(--line)"/>
             <g fill="var(--muted)">
@@ -111,24 +111,24 @@
       <span class="tag">perceptual / latent space</span>
     </div>
 
-    <!-- 4. Временные ряды -->
+    <!-- 4. Time series -->
     <div class="cell">
       <div class="mtitle"><span class="idx">4</span>Time series</div>
       <div class="illus">
         <svg viewBox="0 0 200 96" role="img" aria-label="editing a connected segment, DTW">
-          <!-- выделенный отрезок -->
+          <!-- highlighted segment -->
           <rect x="82" y="6" width="43.2" height="70" fill="color-mix(in srgb, var(--s2) 9%, transparent)"/>
-          <!-- ось -->
+          <!-- axis -->
           <line x1="10" y1="78" x2="190" y2="78" stroke="var(--line)" stroke-width="1"/>
-          <!-- DTW-выравнивание -->
+          <!-- DTW alignment -->
           <g stroke="var(--muted)" stroke-width="0.8" stroke-dasharray="2 2" opacity="0.7">
             <line x1="24.4" y1="28.4" x2="24.4" y2="28.4"/>
             <line x1="110.8" y1="45.4" x2="110.8" y2="30.7"/>
           </g>
-          <!-- исходный ряд -->
+          <!-- original series -->
           <path d="M10.0 38.3 L17.2 33.0 L24.4 28.4 L31.6 24.6 L38.8 21.8 L46.0 20.0 L53.2 19.3 L60.4 19.7 L67.6 21.3 L74.8 23.8 L82.0 27.1 L89.2 31.2 L96.4 35.7 L103.6 40.6 L110.8 45.4 L118.0 50.2 L125.2 54.6 L132.4 58.5 L139.6 61.7 L146.8 64.1 L154.0 65.7 L161.2 66.3 L168.4 66.1 L175.6 65.0 L182.8 63.2 L190.0 60.7"
                 fill="none" stroke="var(--muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <!-- контрфактуал -->
+          <!-- counterfactual -->
           <path d="M10.0 38.3 L17.2 33.0 L24.4 28.4 L31.6 24.6 L38.8 21.8 L46.0 20.0 L53.2 19.3 L60.4 19.7 L67.6 21.3 L74.8 23.8 L82.0 27.1 L89.2 22.7 L96.4 21.0 L103.6 23.6 L110.8 30.7 L118.0 41.7 L125.2 54.6 L132.4 58.5 L139.6 61.7 L146.8 64.1 L154.0 65.7 L161.2 66.3 L168.4 66.1 L175.6 65.0 L182.8 63.2 L190.0 60.7"
                 fill="none" stroke="var(--s2)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
           <text x="103.6" y="90" text-anchor="middle" font-family="Manrope,system-ui" font-size="10.5"
