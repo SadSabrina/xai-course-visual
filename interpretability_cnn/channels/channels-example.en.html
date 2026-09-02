@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Channels: a worked example on one image</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .ctrls{display:flex; gap:8px; align-items:center; margin-bottom:10px}
+  .det{margin-top:10px; min-height:70px; display:flex; gap:20px; align-items:center; flex-wrap:wrap}
+  .mini{display:inline-grid; grid-template-columns:repeat(3,26px); gap:2px}
+  .mini .c{height:22px; display:flex; align-items:center; justify-content:center;
+           font-variant-numeric:tabular-nums; font-size:12px; border-radius:4px; background:var(--plane); color:var(--ink)}
+  .chL{display:flex; flex-direction:column; gap:4px; align-items:center}
+  .chL .h{font-weight:700; font-size:12px; padding:0 8px; border-radius:5px}
+  .chL.R .h{background:color-mix(in srgb,#e5534b 16%,transparent); color:#c0392b}
+  .chL.G .h{background:color-mix(in srgb,#3fae5f 18%,transparent); color:#2e7d46}
+  .chL.B .h{background:color-mix(in srgb,#2a78d6 16%,transparent); color:#2a6fc4}
+  .kw .c{background:color-mix(in srgb,var(--s2) 13%,transparent); font-weight:600}
+  .calc{font-variant-numeric:tabular-nums; font-size:15px; color:var(--ink)}
+  .calc b{color:var(--s2); font-size:19px}
+  .calc .mut{color:var(--ink-2); font-size:13px}
+</style>
+</head>
+<body class="viz" data-palette="channels">
+  <div class="viz-head">
+    <h1>Channels: a worked example on one image</h1>
+    <p>A CIFAR-10 frame, 3×32×32, convolved with a 3×3 window (stride 1, pad 1). One position, two kernels — two numbers into two different maps.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="next" class="viz-tab">Step ▶</button>
+    <button id="reset" class="viz-tab">⟲ Reset</button>
+    <span class="viz-label" id="stepinfo"></span>
+  </div>
+
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:360px;max-height:440px"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <div class="det" id="det"></div>
+    <p id="cap" style="margin:10px 0 0"></p>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const R=[[10,90,200],[12,95,210],[9,88,205]];
+const G=[[20,30,40],[22,28,44],[19,33,41]];
+const B=[[15,18,25],[16,20,27],[14,19,26]];
+const css=n=>VIZ.css(n);
+const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo'), det=document.getElementById('det');
+let step=0;
+
+function poly(ctx,pts,fill,stroke,lw){ ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath();
+  if(fill){ctx.fillStyle=fill; ctx.fill();} if(stroke){ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke();} }
+function line(ctx,x1,y1,x2,y2){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+function label(ctx,x,y,t,col,size,w,align,base){
+  ctx.font=`${w||600} ${size}px Manrope, system-ui, sans-serif`; ctx.fillStyle=col;
+  ctx.textAlign=align||'center'; ctx.textBaseline=base||'alphabetic';
+  ctx.lineJoin='round'; ctx.lineWidth=3.5; ctx.strokeStyle=css('--surface'); ctx.strokeText(t,x,y); ctx.fillText(t,x,y);
+}
+function clamp(v){return Math.max(0,Math.min(255,Math.round(v)));}
+// одна цветовая плоскость 32×32 (kind: R/G/B)
+function plane(ctx,px,py,S,kind){
+  const N=32, s=S/N;
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    const t=x/(N-1); let r,g,b;
+    if(kind==='R'){ r=22+205*t+Math.sin(x*0.8+y*0.4)*7; g=30; b=30; }
+    else if(kind==='G'){ r=30; g=42+52*(y/(N-1))+Math.cos(x*0.6)*5; b=34; }
+    else { r=30; g=34; b=46+40*(1-t)+Math.sin(y*0.7)*4; }
+    ctx.fillStyle=`rgb(${clamp(r)},${clamp(g)},${clamp(b)})`;
+    ctx.fillRect(px+x*s,py+y*s,Math.ceil(s),Math.ceil(s));
+  }
+  poly(ctx,[[px,py],[px+S,py],[px+S,py+S],[px,py+S]], null, css('--line'), 1);
+}
+// стилизованная выходная карта (coral heatmap)
+function omap(ctx,px,py,S,kind){
+  const N=32,s=S/N,coral=css('--s2');
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){
+    let a = kind===1 ? 0.10+0.5*Math.abs(Math.sin(x*0.6))*(0.5+0.5*Math.sin(y*0.25))
+                     : 0.09+0.32*(0.5+0.5*Math.sin(x*0.25+y*0.3));
+    ctx.fillStyle=VIZ.alpha(coral,Math.min(0.75,a)); ctx.fillRect(px+x*s,py+y*s,Math.ceil(s),Math.ceil(s));
+  }
+  poly(ctx,[[px,py],[px+S,py],[px+S,py+S],[px,py+S]], null, VIZ.alpha(coral,0.85), 1.2);
+  // подсветка позиции окна
+  ctx.fillStyle=coral; ctx.fillRect(px+14*s,py+14*s,3*s,3*s);
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5; ctx.strokeRect(px+14*s,py+14*s,3*s,3*s);
+}
+// выходной бокс из C каналов
+function box(ctx,fx,fy,S,dx,dy,o){
+  const A=[fx,fy],B=[fx+S,fy],C=[fx+S,fy+S];
+  const Ab=[A[0]+dx,A[1]-dy],Bb=[B[0]+dx,B[1]-dy],Cb=[C[0]+dx,C[1]-dy];
+  poly(ctx,[A,B,Bb,Ab],o.side,o.edge,1);
+  poly(ctx,[B,C,Cb,Bb],o.sideDark||o.side,o.edge,1);
+  ctx.strokeStyle=o.edge; ctx.globalAlpha=0.5; ctx.lineWidth=1;
+  for(let k=1;k<o.nsl;k++){ const f=k/o.nsl;
+    line(ctx,A[0]+dx*f,A[1]-dy*f,B[0]+dx*f,B[1]-dy*f); line(ctx,B[0]+dx*f,B[1]-dy*f,C[0]+dx*f,C[1]-dy*f); }
+  ctx.globalAlpha=1;
+  poly(ctx,[A,B,C,[fx,fy+S]],o.front,o.edge,1.4);
+}
+
+const view=VIZ.mount(document.getElementById('c'),(ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const coral=css('--s2'), ink=css('--ink'), ink2=css('--ink-2');
+  const S=Math.min(W*0.205, H*0.44), s=S/32, off=S*0.17;
+  const fs=Math.max(12,Math.min(W,H)*0.028);
+  const ix=W*0.055, iy=H*0.34;                       // фронт-плоскость (R)
+  const ox=W*0.63, oy=H*0.30;                        // выход
+
+  // ---------- ВХОД: 3 плоскости R/G/B ----------
+  const kinds=['B','G','R'];                          // рисуем сзади вперёд
+  for(let k=2;k>=0;k--){ plane(ctx, ix+k*off, iy-k*off, S, kinds[2-k]); }
+  // подписи каналов на выступающих углах
+  label(ctx, ix+2*off+S+6, iy-2*off-6, 'B', '#2a6fc4', fs*0.8, 700,'left','bottom');
+  label(ctx, ix+1*off+S+6, iy-1*off-6, 'G', '#2e7d46', fs*0.8, 700,'left','bottom');
+  label(ctx, ix+S/2, iy-2*off-10, 'image · 3×32×32', ink2, fs, 700,'center','bottom');
+  // окно 3×3 на фронт-плоскости
+  const kx=ix+14*s, ky=iy+14*s, kw=3*s;
+  poly(ctx,[[kx,ky],[kx+kw,ky],[kx+kw,ky+kw],[kx,ky+kw]], VIZ.alpha(coral,0.15), coral, 2.4);
+
+  // ---------- ЯДРО-ПРИЗМА 3×3×3 ----------
+  if(step>=2){
+    const ex=2*off, ey=-2*off;
+    const front=[[kx,ky],[kx+kw,ky],[kx+kw,ky+kw],[kx,ky+kw]];
+    const back=front.map(p=>[p[0]+ex,p[1]+ey]);
+    ctx.strokeStyle=coral; ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
+    front.forEach((p,i)=>line(ctx,p[0],p[1],back[i][0],back[i][1]));
+    ctx.setLineDash([]);
+    poly(ctx,back,null,coral,1.8);
+    if(step<=4) label(ctx, ix+S/2, iy+S+fs*1.5, 'kernel 3×3×3 · 27 weights', coral, fs*0.84, 700,'center','top');
+  }
+
+  // ---------- СТРЕЛКА + ВЫХОД ----------
+  if(step>=3){
+    const x1=ix+S+off*2, y1=iy-off+S*0.5, x2=ox-10, y2=oy+S*0.5;
+    VIZ.arrow(ctx, x1+6, y1, x2, y2, ink2, {width:2.4, headSize:10});
+  }
+  if(step>=5){
+    const odx=S*0.55, ody=S*0.55;
+    box(ctx,ox,oy,S,odx,ody,{ front:VIZ.alpha(coral,0.14), side:VIZ.alpha(coral,0.24), sideDark:VIZ.alpha(coral,0.32), edge:VIZ.alpha(coral,0.9), nsl:16 });
+    label(ctx, ox+S/2+odx*0.5, oy-ody-8, 'output · 16×32×32', coral, fs, 700,'center','bottom');
+    // подсветить 2 передних канала = наши карты
+    [0.0,0.12].forEach((f,i)=>{ const sl=[[ox,oy],[ox+S,oy],[ox+S,oy+S],[ox,oy+S]].map(p=>[p[0]+odx*f,p[1]-ody*f]);
+      poly(ctx,sl, VIZ.alpha(coral,i?0.22:0.34), '#fff', 2); poly(ctx,sl,null,coral,1.6); });
+    label(ctx, ox+S*0.5, oy+S+fs*1.2, 'maps 1 & 2 — among 16', ink2, fs*0.78, 600,'center','top');
+  } else if(step>=3){
+    // карта 1
+    omap(ctx,ox,oy,S,1);
+    label(ctx, ox+S/2, oy-8, 'map 1 · 584', coral, fs, 700,'center','bottom');
+    if(step>=4){ // карта 2 позади
+      const p2x=ox+off*1.1, p2y=oy-off*1.1;
+      omap(ctx,p2x,p2y,S*0.9,2);
+      label(ctx, p2x+S*0.45, p2y-6, 'map 2 · 20', coral, fs*0.9, 700,'center','bottom');
+    }
+  }
+});
+
+const CAP={
+  1:'A CIFAR-10 frame as a 3×32×32 tensor — three planes R, G, B. We place a 3×3 window at a position.',
+  2:'The window across the full depth is a kernel 3×3×3 = 27 weights. It cuts out 9 pixels × 3 channels = 27 numbers.',
+  3:'Kernel 1 (R weights [−1,0,1]; G, B zero): per row 190, 198, 196 → 584 into map 1.',
+  4:'Kernel 2 (B weights 1/9; R, G zero): the mean over blue, 180/9 = 20 into map 2.',
+  5:'One position — two numbers. Slide over all — two 32×32 maps. 16 kernels → a 16×32×32 tensor, 16×3×3×3 = 432 weights.',
+};
+function miniGrid(data,cls){ return `<div class="mini ${cls||''}">`+data.flat().map(v=>`<span class="c">${v}</span>`).join('')+'</div>'; }
+function detHTML(){
+  if(step===2) return `<span class="calc mut">3×3 window → 27 numbers:</span>`+
+    ['R','G','B'].map((ch,i)=>`<div class="chL ${ch}"><span class="h">${ch}</span>${miniGrid([R,G,B][i])}</div>`).join('');
+  if(step===3) return `<div class="chL"><span class="calc mut">R weights · [−1,0,1]</span>${miniGrid([['−1','0','1'],['−1','0','1'],['−1','0','1']],'kw')}</div>`+
+    `<span class="calc"><span class="mut">per row:</span> 190 + 198 + 196 = <b>584</b></span>`;
+  if(step===4) return `<div class="chL"><span class="calc mut">B weights · 1/9</span>${miniGrid([['1/9','1/9','1/9'],['1/9','1/9','1/9'],['1/9','1/9','1/9']],'kw')}</div>`+
+    `<span class="calc"><span class="mut">mean over B:</span> 180 / 9 = <b>20</b></span>`;
+  if(step===5) return `<span class="calc"><b>584</b> → map 1&nbsp;&nbsp;·&nbsp;&nbsp;<b>20</b> → map 2&nbsp;&nbsp;·&nbsp;&nbsp;16 kernels → <span style="color:var(--ink)">16×32×32</span>, weights = <b>432</b></span>`;
+  return '';
+}
+function render(){
+  stepinfo.textContent = step===0 ? 'press “Step ▶”' : `Step ${step} of 5`;
+  cap.textContent = step===0 ? 'One concrete example, step by step.' : CAP[step];
+  det.innerHTML = detHTML();
+  document.getElementById('next').disabled=(step>=5);
+  view.redraw();
+}
+document.getElementById('next').onclick=()=>{ if(step<5){step++; render();} };
+document.getElementById('reset').onclick=()=>{ step=0; render(); };
+render();
+</script>
+</body>
+</html>
