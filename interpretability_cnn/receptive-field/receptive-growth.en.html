@@ -21,8 +21,7 @@
 </head>
 <body class="viz" data-palette="channels">
   <div class="viz-head">
-    <h1>How the receptive field grows</h1>
-    <p>“Looking at 3×3 neighbors” at each layer means that with every step deeper, a neuron’s field expands by one ring of input cells.</p>
+    <h3>How the receptive field grows</h3>
   </div>
 
   <div class="ctrls">
@@ -58,9 +57,9 @@ const cx=i=>ox+i*cell;
 let step=0;
 const CAP={
   0:'This is an output neuron of a deep layer. Let’s trace which input region it covers.',
-  1:'Layer 1: the neuron takes a 3×3 window — nine neighbors. Its field is 3×3 so far.',
-  2:'Layer 2: each of those 9 cells looked at its own 3×3. The outer ones reach one cell further — the field gains a ring, up to 5×5.',
-  3:'Layer 3: one more ring of neighbors — field 7×7. If pooling sits between layers, the stride doubles and the field jumps.',
+  1:'Layer 1: the neuron takes a 3×3 window — nine neighbors..',
+  2:'Layer 2: each of those 9 cells looked at its own 3×3.',
+  3:'Layer 3: one more ring of neighbors — field 7×7.',
 };
 function draw(){
   svg.textContent='';
