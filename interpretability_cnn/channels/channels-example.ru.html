@@ -47,7 +47,7 @@ const G=[[20,30,40],[22,28,44],[19,33,41]];
 const B=[[15,18,25],[16,20,27],[14,19,26]];
 const css=n=>VIZ.css(n);
 const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo'), det=document.getElementById('det');
-let step=0;
+let step=1;
 
 function poly(ctx,pts,fill,stroke,lw){ ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath();
   if(fill){ctx.fillStyle=fill; ctx.fill();} if(stroke){ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke();} }
@@ -172,14 +172,13 @@ function detHTML(){
   return '';
 }
 function render(){
-  stepinfo.textContent = step===0 ? 'нажми «Шаг ▶»' : `Шаг ${step} из 5`;
-  cap.textContent = step===0 ? 'Один конкретный пример по шагам.' : CAP[step];
+  stepinfo.textContent = step===1 ? 'нажми «Шаг ▶»' : `Шаг ${step} из 5`;
   det.innerHTML = detHTML();
   document.getElementById('next').disabled=(step>=5);
   view.redraw();
 }
 document.getElementById('next').onclick=()=>{ if(step<5){step++; render();} };
-document.getElementById('reset').onclick=()=>{ step=0; render(); };
+document.getElementById('reset').onclick=()=>{ step=1; render(); };
 render();
 </script>
 </body>
