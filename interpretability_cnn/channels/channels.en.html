@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Channels: one kernel, one output channel</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .ctrls{display:flex; gap:8px; align-items:center; margin-bottom:10px}
+  .foot{margin-top:8px; color:var(--ink-2); font-size:14px}
+  .foot b{color:var(--ink)}
+</style>
+</head>
+<body class="viz" data-palette="channels">
+  <div class="viz-head">
+    <h1>Channels: one kernel — one output channel</h1>
+    <p>A convolution kernel consumes all input channels at once and returns a single response map. It is the channel — not the layer, not a position — that is the object of “what did the network learn”.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="next" class="viz-tab">Step ▶</button>
+    <button id="reset" class="viz-tab">⟲ Reset</button>
+    <span class="viz-label" id="stepinfo"></span>
+  </div>
+
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:420px"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:8px 0 0"></p>
+    <div class="viz-legend" style="margin-top:8px">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>input channels (64)</span>
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>kernel / output channel</span>
+    </div>
+    <div class="foot"><b>filter = kernel = weights</b> (64×3×3) · <b>channel</b> = response map on an image · <b>unit</b> = channel (Network Dissection term)</div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const G=6, KW=3, KI=2, KJ=1;   // сетка H×W = 6×6, окно 3×3, позиция окна (строка,столбец)
+const CAP={
+  1:'A layer’s activations are a stack of maps: a C×H×W tensor, each map = one channel. This layer’s input has 64 channels.',
+  2:'Two different “3×3”. The 3×3 window — how many pixels are seen at once. The whole kernel — that window across the full input depth: 64×3×3 = 576 weights. One position → 576 products → one number.',
+  3:'Slide the kernel over every position — one 2D map builds up. One kernel gives exactly one output channel, no matter how many input channels there are.',
+  4:'Want 128 channels — take 128 kernels: the layer weights are 128×64×3×3 = 73,728 numbers. “What did the net learn?” is a question about a single channel (e.g. #347 in conv5), not the layer and not a position.',
+};
+let step=0;
+const css=n=>VIZ.css(n);
+const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo');
+
+// --- тензор-бокс: фронт-грань (fx,fy,S), глубина (dx,-dy) ---
+function box(ctx,fx,fy,S,dx,dy,o){
+  const A=[fx,fy],B=[fx+S,fy],C=[fx+S,fy+S],D=[fx,fy+S];
+  const Ab=[A[0]+dx,A[1]-dy],Bb=[B[0]+dx,B[1]-dy],Cb=[C[0]+dx,C[1]-dy];
+  // top
+  poly(ctx,[A,B,Bb,Ab],o.side,o.edge,1);
+  // right
+  poly(ctx,[B,C,Cb,Bb],o.sideDark||o.side,o.edge,1);
+  // slice-линии (намёк на число каналов)
+  ctx.strokeStyle=o.edge; ctx.globalAlpha=0.5; ctx.lineWidth=1;
+  const nsl=o.nsl||16;
+  for(let k=1;k<nsl;k++){ const f=k/nsl;
+    line(ctx, A[0]+dx*f, A[1]-dy*f, B[0]+dx*f, B[1]-dy*f);
+    line(ctx, B[0]+dx*f, B[1]-dy*f, C[0]+dx*f, C[1]-dy*f);
+  }
+  ctx.globalAlpha=1;
+  // фронт-грань
+  poly(ctx,[A,B,C,D],o.front,o.edge,1.4);
+  return {A,B,C,D,Ab,Bb,Cb};
+}
+function grid(ctx,fx,fy,S,col){
+  ctx.strokeStyle=col; ctx.lineWidth=1; ctx.globalAlpha=0.6;
+  for(let i=1;i<G;i++){ line(ctx,fx+S/G*i,fy,fx+S/G*i,fy+S); line(ctx,fx,fy+S/G*i,fx+S,fy+S/G*i); }
+  ctx.globalAlpha=1;
+}
+function poly(ctx,pts,fill,stroke,lw){ ctx.beginPath(); pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1])); ctx.closePath();
+  if(fill){ctx.fillStyle=fill; ctx.fill();} if(stroke){ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke();} }
+function line(ctx,x1,y1,x2,y2){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+function label(ctx,x,y,t,col,size,w,align,base){
+  ctx.font=`${w||600} ${size}px Manrope, system-ui, sans-serif`; ctx.fillStyle=col;
+  ctx.textAlign=align||'center'; ctx.textBaseline=base||'alphabetic';
+  ctx.lineJoin='round'; ctx.lineWidth=3.5; ctx.strokeStyle=css('--surface'); ctx.strokeText(t,x,y); ctx.fillText(t,x,y);
+}
+
+const view=VIZ.mount(document.getElementById('c'),(ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const blue=css('--s1'), coral=css('--s2'), ink=css('--ink'), ink2=css('--ink-2');
+  const S=Math.min(W*0.17, H*0.36);
+  const cell=S/G;
+  // входной бокс
+  const ix=W*0.05, iy=H*0.30, idx=S*0.42, idy=S*0.42;
+  // выходной бокс/карта
+  const ox=W*0.55, oy=H*0.28;
+  const fs=Math.max(12,Math.min(W,H)*0.028);
+
+  // ---------- ВХОД ----------
+  box(ctx,ix,iy,S,idx,idy,{ front:VIZ.alpha(blue,0.14), side:VIZ.alpha(blue,0.26), sideDark:VIZ.alpha(blue,0.34), edge:VIZ.alpha(blue,0.85), nsl:18 });
+  grid(ctx,ix,iy,S,VIZ.alpha(blue,0.5));
+  label(ctx, ix+S/2+idx*0.5, iy-idy-8, 'input · 64×H×W', blue, fs, 700, 'center','bottom');
+
+  // окно/ядро
+  if(step>=2){
+    const kx=ix+cell*KJ, ky=iy+cell*KI, kw=cell*KW;
+    // окно 3×3 на фронт-грани
+    poly(ctx,[[kx,ky],[kx+kw,ky],[kx+kw,ky+kw],[kx,ky+kw]], VIZ.alpha(coral,0.20), coral, 2.4);
+    // протяжка на всю глубину (ядро 64×3×3)
+    const ext=[[kx,ky],[kx+kw,ky],[kx+kw,ky+kw],[kx,ky+kw]].map(p=>[p[0]+idx,p[1]-idy]);
+    ctx.strokeStyle=VIZ.alpha(coral,0.9); ctx.lineWidth=1.6; ctx.setLineDash([4,3]);
+    [[kx,ky],[kx+kw,ky],[kx+kw,ky+kw],[kx,ky+kw]].forEach((p,i)=>line(ctx,p[0],p[1],ext[i][0],ext[i][1]));
+    ctx.setLineDash([]);
+    poly(ctx,ext, null, VIZ.alpha(coral,0.8), 1.6);
+    label(ctx, kx+kw+idx*0.5+4, ky-idy-4, 'kernel 64×3×3 = 576', coral, fs*0.86, 700, 'center','bottom');
+  }
+
+  // стрелка ВХОД(ядро) → ВЫХОД
+  if(step>=2){
+    const x1=ix+S+idx*0.5, y1=iy+cell*(KI+1.5), x2=ox-8, y2=oy+S*0.5;
+    VIZ.arrow(ctx, x1+8, y1, x2, y2, ink2, {width:2.4, headSize:10});
+    if(step===2) label(ctx,(x1+x2)/2, (y1+y2)/2-10, '576 → 1 number', ink2, fs*0.8, 600,'center','bottom');
+  }
+
+  // ---------- ВЫХОД ----------
+  if(step>=4){
+    const odx=S*0.5, ody=S*0.5;
+    box(ctx,ox,oy,S,odx,ody,{ front:VIZ.alpha(coral,0.13), side:VIZ.alpha(coral,0.24), sideDark:VIZ.alpha(coral,0.32), edge:VIZ.alpha(coral,0.9), nsl:22 });
+    grid(ctx,ox,oy,S,VIZ.alpha(coral,0.4));
+    label(ctx, ox+S/2+odx*0.5, oy-ody-8, 'output · 128×H×W', coral, fs, 700,'center','bottom');
+    label(ctx, ox+S/2+odx*0.5, oy-ody-8-fs*1.12, '128×64×3×3 = 73 728', ink2, fs*0.76, 600,'center','bottom');
+    // выделенный канал — один срез, слегка выдвинут из стопки
+    const f=0.5, off=15;
+    const base=[[ox,oy],[ox+S,oy],[ox+S,oy+S],[ox,oy+S]];
+    const sl=base.map(p=>[p[0]+odx*f+off, p[1]-ody*f-off]);
+    poly(ctx,sl, VIZ.alpha(coral,0.30), css('--surface'), 3.2);
+    poly(ctx,sl, null, coral, 2.2);
+    // выноска снизу
+    const scx=(sl[0][0]+sl[2][0])/2, sby=Math.max(sl[2][1],sl[3][1]);
+    const lcx=ox+S/2, lcy=oy+S+fs*0.7;
+    VIZ.arrow(ctx, lcx, lcy, scx, sby+4, coral, {width:2, headSize:9});
+    label(ctx, lcx, lcy+fs*1.05, 'channel #347 · “what did it learn?”', coral, fs*0.92, 700,'center','top');
+    label(ctx, lcx, lcy+fs*2.2, 'one of 128 — not a layer, not a position', ink2, fs*0.8, 600,'center','top');
+  } else if(step>=2){
+    // одиночная карта отклика (один канал)
+    poly(ctx,[[ox,oy],[ox+S,oy],[ox+S,oy+S],[ox,oy+S]], VIZ.alpha(coral, step>=3?0.16:0.05), VIZ.alpha(coral,0.85), 1.4);
+    grid(ctx,ox,oy,S,VIZ.alpha(coral,0.45));
+    if(step>=3){
+      label(ctx, ox+S/2, oy-8, '1 map = 1 channel', coral, fs, 700,'center','bottom');
+    } else {
+      // одно число: подсветить одну ячейку
+      const cx=ox+cell*KJ, cy=oy+cell*KI;
+      poly(ctx,[[cx,cy],[cx+cell,cy],[cx+cell,cy+cell],[cx,cy+cell]], VIZ.alpha(coral,0.85), coral, 1.6);
+      label(ctx, ox+S/2, oy-8, '1 number', ink2, fs*0.9, 600,'center','bottom');
+    }
+  }
+});
+
+function render(){
+  stepinfo.textContent = step===0 ? 'press “Step ▶”' : `Step ${step} of 4`;
+  cap.textContent = step===0 ? 'Step through how one channel is produced from the input, and why the channel is the unit of interpretation.' : CAP[step];
+  document.getElementById('next').disabled=(step>=4);
+  view.redraw();
+}
+document.getElementById('next').onclick=()=>{ if(step<4){step++; render();} };
+document.getElementById('reset').onclick=()=>{ step=0; render(); };
+render();
+</script>
+</body>
+</html>

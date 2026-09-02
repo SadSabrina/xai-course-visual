@@ -59,6 +59,7 @@
 .viz[data-palette="lime"]{          --s1:#2a78d6; --s2:#2f9e5f; }  /* синий + зелёный */
 .viz[data-palette="perm"]{          --s1:#2a78d6; --s2:#eda100; }  /* синий + янтарный (permutation) */
 .viz[data-palette="anchors"]{       --s1:#2a78d6; --s2:#6c5fd0; }  /* синий + индиго (anchors / контрфактуалы) */
+.viz[data-palette="channels"]{      --s1:#2a78d6; --s2:#ec5f7e; }  /* синий + коралл (CNN / визуализация признаков) */
 /* dark (свои шаги тех же цветов, в валидной зоне светлоты) */
 @media (prefers-color-scheme: dark){
   .viz, .viz[data-palette="density"]{ --s1:#3987e5; --s2:#d95926; }
@@ -66,6 +67,7 @@
   .viz[data-palette="lime"]{          --s1:#3987e5; --s2:#37a866; }
   .viz[data-palette="perm"]{          --s1:#3987e5; --s2:#c98500; }
   .viz[data-palette="anchors"]{       --s1:#3987e5; --s2:#8a7ee8; }
+  .viz[data-palette="channels"]{      --s1:#3987e5; --s2:#e85f88; }
 }
 
 /* ============================================================
