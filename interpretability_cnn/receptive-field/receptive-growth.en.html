@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the receptive field grows</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .ctrls{display:flex; gap:8px; align-items:center; margin-bottom:10px}
+  .wrap{display:flex; gap:26px; align-items:center; justify-content:center; flex-wrap:wrap}
+  .wrap svg{width:100%; height:auto; max-width:400px}
+  .side{max-width:250px; display:flex; flex-direction:column; gap:12px}
+  .fld{display:flex; align-items:baseline; gap:10px}
+  .fld .k{font-size:14px; color:var(--ink-2); font-weight:600; min-width:64px}
+  .fld .v{font-size:22px; font-weight:700; color:var(--s2); font-variant-numeric:tabular-nums}
+  .fld.off{opacity:.3}
+  .chips{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px}
+  .chip{font-size:13px; font-weight:600; color:var(--s2); border:1px solid var(--s2);
+        border-radius:999px; padding:2px 11px; background:color-mix(in srgb,var(--s2) 8%,transparent)}
+</style>
+</head>
+<body class="viz" data-palette="channels">
+  <div class="viz-head">
+    <h1>How the receptive field grows</h1>
+    <p>“Looking at 3×3 neighbors” at each layer means that with every step deeper, a neuron’s field expands by one ring of input cells.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="next" class="viz-tab">Step ▶</button>
+    <button id="reset" class="viz-tab">⟲ Reset</button>
+    <span class="viz-label" id="stepinfo"></span>
+  </div>
+
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:400px"><div class="wrap">
+    <svg id="grid" viewBox="0 0 442 372" role="img" aria-label="receptive field growth on the input grid"></svg>
+    <div class="side">
+      <div class="fld off" data-l="1"><span class="k">layer 1</span><span class="v">3×3</span></div>
+      <div class="fld off" data-l="2"><span class="k">layer 2</span><span class="v">5×5</span></div>
+      <div class="fld off" data-l="3"><span class="k">layer 3</span><span class="v">7×7</span></div>
+      <div class="chips">
+        <span class="chip">+2 per 3×3 layer</span>
+        <span class="chip">pooling → ×2</span>
+      </div>
+    </div>
+  </div></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:10px 0 0"></p>
+  </div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('grid');
+const css=n=>getComputedStyle(document.body).getPropertyValue(n).trim();
+function el(t,a){ const e=document.createElementNS(NS,t); for(const k in a) e.setAttribute(k,a[k]); return e; }
+const N=13, cell=26, ox=18, oy=18, C=6;   // 13×13, центр (6,6)
+const cx=i=>ox+i*cell;
+let step=0;
+const CAP={
+  0:'This is an output neuron of a deep layer. Let’s trace which input region it covers.',
+  1:'Layer 1: the neuron takes a 3×3 window — nine neighbors. Its field is 3×3 so far.',
+  2:'Layer 2: each of those 9 cells looked at its own 3×3. The outer ones reach one cell further — the field gains a ring, up to 5×5.',
+  3:'Layer 3: one more ring of neighbors — field 7×7. If pooling sits between layers, the stride doubles and the field jumps.',
+};
+function draw(){
+  svg.textContent='';
+  const coral=css('--s2'), ink=css('--ink'), ink2=css('--ink-2'), line=css('--line');
+  // сетка
+  const g=el('g',{}); svg.appendChild(g);
+  for(let i=0;i<=N;i++){
+    g.appendChild(el('line',{x1:cx(i),y1:oy,x2:cx(i),y2:oy+N*cell,stroke:line,'stroke-width':1}));
+    g.appendChild(el('line',{x1:ox,y1:oy+i*cell,x2:ox+N*cell,y2:oy+i*cell,stroke:line,'stroke-width':1}));
+  }
+  const k=step; // поле = (2k+1)
+  // заливка поля + кольцо-прирост
+  if(k>=1){
+    // всё поле
+    svg.appendChild(el('rect',{x:cx(C-k),y:cx(C-k),width:(2*k+1)*cell,height:(2*k+1)*cell,
+      fill:`color-mix(in srgb,${coral} 16%,transparent)`}));
+    // новое кольцо (клетки на расстоянии ровно k) — ярче
+    if(k>=2){
+      const outer=(2*k+1)*cell, inner=(2*(k-1)+1)*cell;
+      const rx=cx(C-k), ry=cx(C-k);
+      // рисуем кольцо как разницу: 4 прямоугольника
+      const t=(outer-inner)/2;
+      svg.appendChild(el('rect',{x:rx,y:ry,width:outer,height:t,fill:`color-mix(in srgb,${coral} 34%,transparent)`}));
+      svg.appendChild(el('rect',{x:rx,y:ry+outer-t,width:outer,height:t,fill:`color-mix(in srgb,${coral} 34%,transparent)`}));
+      svg.appendChild(el('rect',{x:rx,y:ry+t,width:t,height:outer-2*t,fill:`color-mix(in srgb,${coral} 34%,transparent)`}));
+      svg.appendChild(el('rect',{x:rx+outer-t,y:ry+t,width:t,height:outer-2*t,fill:`color-mix(in srgb,${coral} 34%,transparent)`}));
+    }
+    // контур поля
+    svg.appendChild(el('rect',{x:cx(C-k),y:cx(C-k),width:(2*k+1)*cell,height:(2*k+1)*cell,
+      fill:'none',stroke:coral,'stroke-width':2.6}));
+  }
+  // демонстрация «соседей»: 3×3 вокруг верхней-центральной клетки прошлого поля
+  if(k>=2){
+    const r=C-(k-1);            // строка верхнего края прошлого поля
+    // 3×3 вокруг клетки (C, r): столбцы C-1..C+1, строки r-1..r+1
+    svg.appendChild(el('rect',{x:cx(C-1),y:cx(r-1),width:3*cell,height:3*cell,
+      fill:'none',stroke:ink,'stroke-width':2,'stroke-dasharray':'4 3'}));
+    // подпись
+    const tx=cx(C+2)+4, ty=cx(r-1)+cell;
+    const t1=el('text',{x:tx,y:ty,'font-family':'Manrope,system-ui','font-size':13,'font-weight':700,fill:ink}); t1.textContent='its 3×3 neighbors'; svg.appendChild(t1);
+    const t2=el('text',{x:tx,y:ty+16,'font-family':'Manrope,system-ui','font-size':12.5,'font-weight':600,fill:ink2}); t2.textContent='extend the field by +1'; svg.appendChild(t2);
+  }
+  // центральный нейрон
+  svg.appendChild(el('rect',{x:cx(C),y:cx(C),width:cell,height:cell,fill:coral}));
+  svg.appendChild(el('rect',{x:cx(C),y:cx(C),width:cell,height:cell,fill:'none',stroke:'#fff','stroke-width':1.5}));
+}
+function render(){
+  document.getElementById('stepinfo').textContent = step===0 ? 'press “Step ▶”' : `layer ${step} · field ${2*step+1}×${2*step+1}`;
+  document.getElementById('cap').textContent = CAP[step];
+  document.querySelectorAll('.fld').forEach(f=>f.classList.toggle('off', (+f.dataset.l)>step));
+  document.getElementById('next').disabled=(step>=3);
+  draw();
+}
+document.getElementById('next').onclick=()=>{ if(step<3){step++; render();} };
+document.getElementById('reset').onclick=()=>{ step=0; render(); };
+const mq=window.matchMedia('(prefers-color-scheme: dark)');
+(mq.addEventListener?mq.addEventListener('change',draw):mq.addListener(draw));
+render();
+</script>
+</body>
+</html>
