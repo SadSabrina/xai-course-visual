@@ -24,10 +24,7 @@
 </head>
 <body class="viz" data-palette="channels">
   <div class="viz-head">
-    <h1>Channels: a worked example on one image</h1>
-    <p>A CIFAR-10 frame, 3×32×32, convolved with a 3×3 window (stride 1, pad 1). One position, two kernels — two numbers into two different maps.</p>
-  </div>
-
+    <h3>Channels: a worked example on one image</h3>
   <div class="ctrls">
     <button id="next" class="viz-tab">Step ▶</button>
     <button id="reset" class="viz-tab">⟲ Reset</button>
@@ -155,7 +152,7 @@ const view=VIZ.mount(document.getElementById('c'),(ctx,W,H)=>{
 });
 
 const CAP={
-  1:'A CIFAR-10 frame as a 3×32×32 tensor — three planes R, G, B. We place a 3×3 window at a position.',
+  1:'Input as a 3×32×32 tensor — three planes R, G, B. We place a 3×3 window at a position.',
   2:'The window across the full depth is a kernel 3×3×3 = 27 weights. It cuts out 9 pixels × 3 channels = 27 numbers.',
   3:'Kernel 1 (R weights [−1,0,1]; G, B zero): per row 190, 198, 196 → 584 into map 1.',
   4:'Kernel 2 (B weights 1/9; R, G zero): the mean over blue, 180/9 = 20 into map 2.',
