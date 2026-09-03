@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bilinear interpolation</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .ctrls{display:flex; gap:8px; align-items:center; margin-bottom:10px}
+  .foot{margin-top:8px; color:var(--ink-2); font-size:14px}
+</style>
+</head>
+<body class="viz" data-palette="channels">
+  <div class="viz-head">
+    <h1>Bilinear interpolation</h1>
+    <p>Values are known only at the nodes of a coarse grid; we need a value in between. We average linearly twice — first along one axis, then the other. This is how a 7×7 map is stretched to 224×224.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="next" class="viz-tab">Step ▶</button>
+    <button id="reset" class="viz-tab">⟲ Reset</button>
+    <span class="viz-label" id="stepinfo"></span>
+  </div>
+
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:400px"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:10px 0 0"></p>
+    <div class="viz-legend" style="margin-top:8px">
+      <span class="item"><span class="swatch" style="background:var(--s1)"></span>known nodes (A B C D)</span>
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>interpolation (top, bottom, P)</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const A=0,B=4,C=2,D=6, U=0.25, V=0.75;   // углы (y вниз): A TL, B TR, C BL, D BR
+const TOPv=(1-U)*A+U*B, BOTv=(1-U)*C+U*D, S=(1-V)*TOPv+V*BOTv;   // 1, 3, 2.5
+const css=n=>VIZ.css(n);
+const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo');
+let step=0;
+const CAP={
+  1:'The cell corners are known: A=0, B=4 (top row), C=2, D=6 (bottom). Point P is shifted u=0.25 right and v=0.75 down.',
+  2:'Horizontal pass, each row separately: top = 0.75·0 + 0.25·4 = 1; bottom = 0.75·2 + 0.25·6 = 3.',
+  3:'Vertical pass between them: P = 0.25·1 + 0.75·3 = 2.5. The order of axes doesn’t matter — starting vertically gives the same 2.5.',
+  4:'Same formula at once: each corner’s weight = the area of its opposite rectangle (P splits the cell into four). Σ weight·value = 2.5.',
+};
+function val(u,v){ const t=(1-u)*A+u*B, b=(1-u)*C+u*D; return t*(1-v)+b*v; }
+function lbl(ctx,x,y,t,col,size,w,align,base){
+  ctx.font=`${w||600} ${size}px Manrope, system-ui, sans-serif`; ctx.fillStyle=col;
+  ctx.textAlign=align||'center'; ctx.textBaseline=base||'alphabetic';
+  ctx.lineJoin='round'; ctx.lineWidth=3.5; ctx.strokeStyle=css('--surface'); ctx.strokeText(t,x,y); ctx.fillText(t,x,y);
+}
+const view=VIZ.mount(document.getElementById('c'),(ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const blue=css('--s1'), coral=css('--s2'), ink=css('--ink'), ink2=css('--ink-2'), line=css('--line');
+  const Sq=Math.min(W*0.42, H*0.62);
+  const L=W*0.12, T=H*0.17, R=L+Sq, Bt=T+Sq;
+  const px=u=>L+u*Sq, py=v=>T+v*Sq;
+  const fs=Math.max(12,Math.min(W,H)*0.03);
+  // фон: билинейная поверхность (плавный скат) — только на шагах 1–3
+  if(step<4){
+    const n=44, ss=Sq/n;
+    for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+      const u=(i+0.5)/n, v=(j+0.5)/n, a=0.05+0.42*(val(u,v)/6);
+      ctx.fillStyle=VIZ.alpha(coral,a); ctx.fillRect(L+i*ss,T+j*ss,Math.ceil(ss),Math.ceil(ss));
+    }
+  }
+  // ---- шаг 4: 4 прямоугольника-веса ----
+  if(step>=4){
+    const wx=px(U), wy=py(V);
+    const rects=[
+      {x:L,y:T,w:U*Sq,h:V*Sq, corner:'D', wgt:U*V},                 // TL ← вес D
+      {x:wx,y:T,w:(1-U)*Sq,h:V*Sq, corner:'C', wgt:(1-U)*V},        // TR ← вес C
+      {x:L,y:wy,w:U*Sq,h:(1-V)*Sq, corner:'B', wgt:U*(1-V)},        // BL ← вес B
+      {x:wx,y:wy,w:(1-U)*Sq,h:(1-V)*Sq, corner:'A', wgt:(1-U)*(1-V)}// BR ← вес A
+    ];
+    rects.forEach(r=>{ ctx.fillStyle=VIZ.alpha(coral,0.12+0.55*r.wgt);
+      ctx.fillRect(r.x,r.y,r.w,r.h);
+      ctx.strokeStyle=VIZ.alpha(coral,0.8); ctx.lineWidth=1; ctx.strokeRect(r.x,r.y,r.w,r.h);
+      if(r.w>28&&r.h>22) lbl(ctx,r.x+r.w/2,r.y+r.h/2+fs*0.15,`${r.corner}·${r.wgt.toFixed(2)}`, ink, fs*0.72,700); });
+  }
+  // рамка ячейки
+  ctx.strokeStyle=ink2; ctx.lineWidth=1.6; ctx.strokeRect(L,T,Sq,Sq);
+
+  // ---- шаг 2/3: интерполяция ----
+  const wx=px(U);
+  if(step>=2 && step<=3){
+    // вертикальная ось интерполяции
+    ctx.strokeStyle=VIZ.alpha(coral,0.8); ctx.lineWidth=1.6; ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(wx,T); ctx.lineTo(wx,Bt); ctx.stroke(); ctx.setLineDash([]);
+    // верх / низ
+    const mk=(y,v,name)=>{ ctx.fillStyle=coral; ctx.beginPath(); ctx.arc(wx,y,6,0,2*Math.PI); ctx.fill();
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+      lbl(ctx,wx,y-11,`${name} = ${v}`, coral, fs*0.82,700); };
+    mk(T,TOPv,'top'); mk(Bt,BOTv,'bottom');
+  }
+  // направляющие u,v (шаг 1)
+  if(step===1){
+    ctx.strokeStyle=ink2; ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(L,py(V)); ctx.lineTo(px(U),py(V)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px(U),T); ctx.lineTo(px(U),py(V)); ctx.stroke(); ctx.setLineDash([]);
+    lbl(ctx,(L+px(U))/2,py(V)+fs*0.9,'u=0.25', ink2, fs*0.72,600);
+    lbl(ctx,px(U)+fs*1.3,(T+py(V))/2,'v=0.75', ink2, fs*0.72,600);
+  }
+  // углы
+  const corners=[['A',A,L,T,'lb'],['B',B,R,T,'rb'],['C',C,L,Bt,'lt'],['D',D,R,Bt,'rt']];
+  corners.forEach(([nm,vv,x,y,pos])=>{
+    ctx.fillStyle=blue; ctx.beginPath(); ctx.arc(x,y,7,0,2*Math.PI); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.6; ctx.stroke();
+    const ax=pos[0]==='l'?x-12:x+12, ay=pos[1]==='t'?y+fs*0.9:y-11;
+    lbl(ctx,ax,ay,`${nm}=${vv}`, blue, fs*0.86,700, pos[0]==='l'?'right':'left','middle');
+  });
+  // точка P
+  const P=[wx,py(V)];
+  ctx.fillStyle=coral; ctx.beginPath(); ctx.arc(P[0],P[1], step>=3?8:6, 0,2*Math.PI); ctx.fill();
+  ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  lbl(ctx,P[0]+13,P[1]+4, step>=3?`P = ${S}`:'P', coral, fs*0.95,700,'left','middle');
+
+  // формула справа
+  if(step>=4){
+    const fx=R+Sq*0.14, fy=T+Sq*0.2;
+    lbl(ctx,fx,fy,'P = Σ weight·value', ink, fs*0.82,700,'left','bottom');
+    ['(1−u)(1−v)·A = 0.19·0','u(1−v)·B = 0.06·4','(1−u)v·C = 0.56·2','u·v·D = 0.19·6'].forEach((t,i)=>
+      lbl(ctx,fx,fy+fs*(1.2+i*1.15),t, ink2, fs*0.72,600,'left','bottom'));
+    lbl(ctx,fx,fy+fs*(1.2+4*1.15)+2,'= 2.5', coral, fs*1.0,700,'left','bottom');
+  }
+});
+function render(){
+  stepinfo.textContent = step===0 ? 'press “Step ▶”' : `step ${step} of 4`;
+  cap.textContent = step===0 ? 'Let’s walk through bilinear interpolation on one cell.' : CAP[step];
+  document.getElementById('next').disabled=(step>=4);
+  view.redraw();
+}
+document.getElementById('next').onclick=()=>{ if(step<4){step++; render();} };
+document.getElementById('reset').onclick=()=>{ step=0; render(); };
+render();
+</script>
+</body>
+</html>
