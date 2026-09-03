@@ -12,8 +12,7 @@
 </head>
 <body class="viz" data-palette="channels">
   <div class="viz-head">
-    <h1>Bilinear interpolation</h1>
-    <p>Values are known only at the nodes of a coarse grid; we need a value in between. We average linearly twice — first along one axis, then the other. This is how a 7×7 map is stretched to 224×224.</p>
+    <h3>Bilinear interpolation</h3>
   </div>
 
   <div class="ctrls">
@@ -40,11 +39,7 @@ const css=n=>VIZ.css(n);
 const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo');
 let step=0;
 const CAP={
-  1:'The cell corners are known: A=0, B=4 (top row), C=2, D=6 (bottom). Point P is shifted u=0.25 right and v=0.75 down.',
-  2:'Horizontal pass, each row separately: top = 0.75·0 + 0.25·4 = 1; bottom = 0.75·2 + 0.25·6 = 3.',
-  3:'Vertical pass between them: P = 0.25·1 + 0.75·3 = 2.5. The order of axes doesn’t matter — starting vertically gives the same 2.5.',
-  4:'Same formula at once: each corner’s weight = the area of its opposite rectangle (P splits the cell into four). Σ weight·value = 2.5.',
-};
+}
 function val(u,v){ const t=(1-u)*A+u*B, b=(1-u)*C+u*D; return t*(1-v)+b*v; }
 function lbl(ctx,x,y,t,col,size,w,align,base){
   ctx.font=`${w||600} ${size}px Manrope, system-ui, sans-serif`; ctx.fillStyle=col;
