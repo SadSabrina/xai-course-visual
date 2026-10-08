@@ -17,11 +17,15 @@ xai-course-visual/
 ├── assets/
 │   ├── viz.css        ← tokens (colors, fonts) + demo skeleton
 │   └── viz.js         ← helpers (canvas, gauss, points)
-├── density/           ← folder = TOPIC (density, attention, shap, saliency …)
-│   ├── two-clusters.ru.html
-│   ├── two-clusters.en.html
-│   ├── dense-region.ru.html
-│   └── dense-region.en.html
+├── nonlinear_interpretable_models/   ← folder = course block
+│   ├── DBSCAN/                       ← subfolder = method / topic
+│   │   ├── dense-region.ru.html
+│   │   ├── dense-region.en.html
+│   │   └── …
+│   └── HDBSCAN/
+├── model_agnostic_posthoc/           ← anchors/, counterfactuals/, lime/, permutation/, shap/
+├── interpretability_cnn/             ← bilinear/, channels/, receptive-field/
+├── EMBED.md
 ├── STYLE.md
 └── README.md
 ```
@@ -163,7 +167,7 @@ Stepik strips `<script>` from a step's HTML editor → embed the interactive **v
 (an external page on GitHub Pages; scripts run inside it). One URL per language:
 
 ```html
-<iframe src="https://sadsabrina.github.io/xai-course-visual/density/two-clusters.en.html"
+<iframe src="https://sadsabrina.github.io/xai-course-visual/nonlinear_interpretable_models/DBSCAN/dense-region.en.html"
         width="640" height="560" style="border:0;max-width:100%"></iframe>
 ```
 

@@ -12,8 +12,8 @@ Scripts run inside the iframe because it's a separate external page.
 ```
 
 Fill in:
-- `TOPIC` — the topic folder, e.g. `density`
-- `NAME` — the file name, e.g. `two-clusters`
+- `TOPIC` — the folder path, e.g. `nonlinear_interpretable_models/DBSCAN`
+- `NAME` — the file name, e.g. `dense-region`
 - `LANG` — `ru` or `en`
 
 ## Steps in Stepik
@@ -27,16 +27,16 @@ Fill in:
 ## Ready examples
 
 ```html
-<!-- two-clusters (RU) -->
-<iframe src="https://sadsabrina.github.io/xai-course-visual/density/two-clusters.ru.html"
+<!-- point-types (RU) -->
+<iframe src="https://sadsabrina.github.io/xai-course-visual/nonlinear_interpretable_models/DBSCAN/point-types.ru.html"
         width="640" height="560" style="border:0;max-width:100%"></iframe>
 
-<!-- two-clusters (EN) -->
-<iframe src="https://sadsabrina.github.io/xai-course-visual/density/two-clusters.en.html"
+<!-- point-types (EN) -->
+<iframe src="https://sadsabrina.github.io/xai-course-visual/nonlinear_interpretable_models/DBSCAN/point-types.en.html"
         width="640" height="560" style="border:0;max-width:100%"></iframe>
 
 <!-- dense-region (RU) -->
-<iframe src="https://sadsabrina.github.io/xai-course-visual/density/dense-region.ru.html"
+<iframe src="https://sadsabrina.github.io/xai-course-visual/nonlinear_interpretable_models/DBSCAN/dense-region.ru.html"
         width="640" height="560" style="border:0;max-width:100%"></iframe>
 ```
 
