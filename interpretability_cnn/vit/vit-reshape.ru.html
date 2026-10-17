@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ViT → Grad-CAM: reshape токенов в сетку</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .ctrls{display:flex; gap:8px; align-items:center; margin-bottom:10px}
+</style>
+</head>
+<body class="viz" data-palette="vit">
+  <div class="viz-head">
+    <h1>Токены ViT → сетка для Grad-CAM</h1>
+    <p>Активации ViT — список (197, D). Чтобы применить Grad-CAM, список сворачивают обратно в пространственную сетку 14×14, как у свёрточного слоя.</p>
+  </div>
+
+  <div class="ctrls">
+    <button id="next" class="viz-tab">Шаг ▶</button>
+    <button id="reset" class="viz-tab">⟲ Сброс</button>
+    <span class="viz-label" id="stepinfo"></span>
+  </div>
+
+  <div class="viz-stage" style="aspect-ratio:auto;min-height:420px"><canvas id="c"></canvas></div>
+
+  <div class="viz-controls">
+    <p id="cap" style="margin:10px 0 0"></p>
+    <div class="viz-legend" style="margin-top:8px">
+      <span class="item"><span class="swatch" style="background:var(--s2)"></span>[CLS] (служебный)</span>
+      <span class="item"><span class="swatch" style="background:linear-gradient(90deg,color-mix(in srgb,var(--s1) 18%,transparent),var(--s1));border-radius:3px"></span>патч-токены (цвет = индекс 0…195)</span>
+    </div>
+  </div>
+
+<script src="/xai-course-visual/assets/viz.js"></script>
+<script>
+const NG=14, NT=196;
+const css=n=>VIZ.css(n);
+const cap=document.getElementById('cap'), stepinfo=document.getElementById('stepinfo');
+let step=0;
+const CAP={
+  1:'Активации блока — (197, D): список из 197 токенов. Пространственной сетки на первый взгляд нет.',
+  2:'Отбрасываем [CLS] — у него нет места на картинке. Остаётся 196 патч-токенов.',
+  3:'reshape построчно: токен i идёт в строку ⌊i/14⌋ и столбец i mod 14. Список свернулся в сетку 14×14 — (14, 14, D).',
+  4:'transpose → (D, 14, 14): признак вперёд, как у свёрточного слоя. Дальше Grad-CAM работает без единого изменения.',
+};
+// цвет по индексу (row-major): светлее → насыщенный фиолетовый
+function idxFill(i){ return VIZ.alpha(css('--s1'), 0.14+0.80*(i/(NT-1))); }
+function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
+function lab(ctx,x,y,t,col,sz,w,al,ba){ctx.font=`${w||600} ${sz}px Manrope, system-ui, sans-serif`;ctx.fillStyle=col;
+  ctx.textAlign=al||'center';ctx.textBaseline=ba||'alphabetic';ctx.lineJoin='round';ctx.lineWidth=3.5;ctx.strokeStyle=css('--surface');ctx.strokeText(t,x,y);ctx.fillText(t,x,y);}
+
+const HL=58;   // токен для подсветки: 58 → строка 4, столбец 2
+const view=VIZ.mount(document.getElementById('c'),(ctx,W,H)=>{
+  ctx.clearRect(0,0,W,H);
+  const s2=css('--s2'), ink=css('--ink'), ink2=css('--ink-2');
+  const fs=Math.max(12,Math.min(W,H)*0.03);
+  // ---- список-бар ----
+  const barY=H*0.14, barH=Math.max(26,H*0.07);
+  const Lx=W*0.09, Rx=W*0.91;
+  const hasCLS = step===1;
+  const clsW = hasCLS ? (Rx-Lx)/ (NT+8) *3 : 0;
+  const segL = Lx + (hasCLS? clsW+6 : 0);
+  const segW = (Rx-segL)/NT;
+  // [CLS]
+  if(hasCLS){
+    ctx.fillStyle=VIZ.alpha(s2,0.9); rr(ctx,Lx,barY,clsW,barH,4); ctx.fill();
+    lab(ctx, Lx+clsW/2, barY-7, '[CLS]', s2, fs*0.8, 700);
+  }
+  // патч-токены
+  for(let i=0;i<NT;i++){ ctx.fillStyle=idxFill(i); ctx.fillRect(segL+i*segW, barY, Math.ceil(segW)+0.5, barH); }
+  ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(segL,barY,Rx-segL,barH);
+  if(!hasCLS) lab(ctx, segL, barY-7, '0', ink2, fs*0.72,600,'left','bottom');
+  lab(ctx, Rx, barY-7, '195', ink2, fs*0.72,600,'right','bottom');
+  lab(ctx, (segL+Rx)/2, barY+barH+fs*1.05, step<3?`список · ${step===1?'(197, D)':'(196, D)'}`:'список · 196 патч-токенов', ink, fs*0.9,700,'center','alphabetic');
+  // маркер подсветки на баре (шаг 3)
+  if(step>=3){
+    const mx=segL+(HL+0.5)*segW;
+    ctx.fillStyle=ink; ctx.beginPath(); ctx.moveTo(mx,barY+barH); ctx.lineTo(mx-5,barY+barH+9); ctx.lineTo(mx+5,barY+barH+9); ctx.closePath(); ctx.fill();
+  }
+
+  // ---- сетка 14×14 (шаг 3+) ----
+  if(step>=3){
+    const Sg=Math.min(W*0.3, H*0.52), gx=W*0.30, gy=H*0.40, c=Sg/NG;
+    // стрелка reshape
+    VIZ.arrow(ctx, (segL+Rx)/2, barY+barH+fs*1.6, gx+Sg/2, gy-10, ink2, {width:2, headSize:9});
+    lab(ctx, (segL+Rx)/2+ (gx+Sg/2-(segL+Rx)/2)*0.5, (barY+barH+gy)/2, 'reshape (построчно)', ink2, fs*0.82,600);
+    // 3D-бокс на шаге 4
+    if(step>=4){
+      const dx=Sg*0.5, dy=Sg*0.5;
+      const A=[gx,gy],B=[gx+Sg,gy],C=[gx+Sg,gy+Sg];
+      const Ab=[A[0]+dx,A[1]-dy],Bb=[B[0]+dx,B[1]-dy],Cb=[C[0]+dx,C[1]-dy];
+      const poly=(p,f,st,lw)=>{ctx.beginPath();p.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.closePath();if(f){ctx.fillStyle=f;ctx.fill();}if(st){ctx.strokeStyle=st;ctx.lineWidth=lw;ctx.stroke();}};
+      poly([A,B,Bb,Ab],VIZ.alpha(css('--s1'),0.18),VIZ.alpha(css('--s1'),0.6),1);
+      poly([B,C,Cb,Bb],VIZ.alpha(css('--s1'),0.26),VIZ.alpha(css('--s1'),0.6),1);
+      ctx.strokeStyle=VIZ.alpha(css('--s1'),0.45); ctx.lineWidth=1; ctx.globalAlpha=0.6;
+      for(let k=1;k<10;k++){const f=k/10; ctx.beginPath();ctx.moveTo(A[0]+dx*f,A[1]-dy*f);ctx.lineTo(B[0]+dx*f,B[1]-dy*f);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(B[0]+dx*f,B[1]-dy*f);ctx.lineTo(C[0]+dx*f,C[1]-dy*f);ctx.stroke();}
+      ctx.globalAlpha=1;
+      lab(ctx, gx+Sg/2+dx*0.5, gy-dy-8, 'D', s2, fs*0.85,700,'center','bottom');
+    }
+    // ячейки сетки
+    for(let r=0;r<NG;r++)for(let col=0;col<NG;col++){ const i=r*NG+col;
+      ctx.fillStyle=idxFill(i); ctx.fillRect(gx+col*c, gy+r*c, Math.ceil(c), Math.ceil(c)); }
+    ctx.strokeStyle=css('--line'); ctx.lineWidth=1; ctx.strokeRect(gx,gy,Sg,Sg);
+    // подсветка клетки HL
+    const hr=Math.floor(HL/NG), hc=HL%NG;
+    ctx.strokeStyle=ink; ctx.lineWidth=2.4; ctx.strokeRect(gx+hc*c, gy+hr*c, c, c);
+    // коннектор бар→клетка
+    const mx=segL+(HL+0.5)*segW;
+    ctx.strokeStyle=VIZ.alpha(ink,0.5); ctx.lineWidth=1.4; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(mx,barY+barH+9); ctx.lineTo(gx+hc*c+c/2, gy+hr*c); ctx.stroke(); ctx.setLineDash([]);
+    lab(ctx, gx+Sg+14, gy+hr*c+c/2, `токен ${HL} → (строка ${hr}, столбец ${hc})`, ink, fs*0.82,700,'left','middle');
+    // подпись формы
+    lab(ctx, gx+Sg/2, gy+Sg+fs*1.3, step>=4?'(D, 14, 14) — как у свёрточного слоя':'(14, 14, D)', s2, fs*1.0,700,'center','alphabetic');
+  }
+});
+function render(){
+  stepinfo.textContent = step===0 ? 'нажми «Шаг ▶»' : `шаг ${step} из 4`;
+  cap.textContent = step===0 ? 'Как список токенов ViT превращается в сетку для Grad-CAM.' : CAP[step];
+  document.getElementById('next').disabled=(step>=4);
+  view.redraw();
+}
+document.getElementById('next').onclick=()=>{ if(step<4){step++; render();} };
+document.getElementById('reset').onclick=()=>{ step=0; render(); };
+render();
+</script>
+</body>
+</html>
