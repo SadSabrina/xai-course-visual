@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Место аксиом</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .board{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+         box-shadow:var(--shadow); padding:20px 22px}
+  .board svg{width:100%; height:auto; display:block}
+</style>
+</head>
+<body class="viz" data-palette="axioms">
+  <div class="board">
+    <svg viewBox="0 0 880 360" role="img" aria-label="Аксиомы как общий фундамент: в математике под леммами и теоремами, в explainable AI под методом атрибуции и объяснением">
+      <defs>
+        <marker id="au" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+          <path d="M0 0 L10 5 L0 10 Z" fill="var(--s2)"/>
+        </marker>
+      </defs>
+      <g font-family="Manrope, system-ui">
+
+        <!-- ground -->
+        <line x1="70" y1="316" x2="810" y2="316" stroke="var(--line)" stroke-width="2"/>
+
+        <!-- column titles -->
+        <text x="235" y="40" text-anchor="middle" font-size="15.5" font-weight="700" fill="var(--ink)">Математика</text>
+        <text x="645" y="40" text-anchor="middle" font-size="15.5" font-weight="700" fill="var(--ink)">Explainable AI</text>
+
+        <!-- ===== LEFT: математика ===== -->
+        <!-- derived blocks (neutral) -->
+        <rect x="130" y="60"  width="210" height="50" rx="9" fill="var(--plane)" stroke="var(--line)" stroke-width="1.6"/>
+        <text x="235" y="91" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">теоремы</text>
+        <rect x="130" y="128" width="210" height="50" rx="9" fill="var(--plane)" stroke="var(--line)" stroke-width="1.6"/>
+        <text x="235" y="159" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">леммы</text>
+        <!-- foundation (accent) -->
+        <rect x="105" y="256" width="260" height="56" rx="10" fill="color-mix(in srgb,var(--s2) 16%,var(--surface))" stroke="var(--s2)" stroke-width="2.2"/>
+        <text x="235" y="290" text-anchor="middle" font-size="15" font-weight="700" fill="var(--s2)">аксиомы</text>
+
+        <!-- ===== RIGHT: explainable AI ===== -->
+        <rect x="540" y="60"  width="210" height="50" rx="9" fill="var(--plane)" stroke="var(--line)" stroke-width="1.6"/>
+        <text x="645" y="91" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">объяснение</text>
+        <rect x="540" y="128" width="210" height="50" rx="9" fill="var(--plane)" stroke="var(--line)" stroke-width="1.6"/>
+        <text x="645" y="152" text-anchor="middle" font-size="14" font-weight="600" fill="var(--ink)">метод атрибуции</text>
+        <text x="645" y="169" text-anchor="middle" font-size="11.5" font-weight="500" fill="var(--ink-2)">IG, SHAP, …</text>
+        <!-- foundation (accent) -->
+        <rect x="515" y="256" width="260" height="56" rx="10" fill="color-mix(in srgb,var(--s2) 16%,var(--surface))" stroke="var(--s2)" stroke-width="2.2"/>
+        <text x="645" y="285" text-anchor="middle" font-size="15" font-weight="700" fill="var(--s2)">аксиомы</text>
+        <text x="645" y="301" text-anchor="middle" font-size="11.5" font-weight="500" fill="var(--s2)">5 свойств</text>
+
+        <!-- dependency arrows, centered on each tower, in the gap between foundation and stack -->
+        <!-- математика: леммы/теоремы следуют ИЗ аксиом → стрелка ВВЕРХ -->
+        <line x1="235" y1="250" x2="235" y2="188" stroke="var(--s2)" stroke-width="2" marker-end="url(#au)"/>
+        <text x="252" y="223" text-anchor="start" font-size="12.5" font-weight="600" fill="var(--ink-2)">следует из</text>
+        <!-- XAI: метод/объяснение держится НА аксиомах → стрелка ВНИЗ, к аксиомам -->
+        <line x1="645" y1="188" x2="645" y2="250" stroke="var(--s2)" stroke-width="2" marker-end="url(#au)"/>
+        <text x="628" y="223" text-anchor="end" font-size="12.5" font-weight="600" fill="var(--ink-2)">держится на</text>
+
+        <!-- analogy link between the two foundations -->
+        <line x1="368" y1="284" x2="512" y2="284" stroke="var(--s2)" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.7"/>
+        <circle cx="440" cy="284" r="17" fill="var(--surface)" stroke="var(--s2)" stroke-width="1.6"/>
+        <text x="440" y="290" text-anchor="middle" font-size="18" font-weight="700" fill="var(--s2)">≈</text>
+      </g>
+    </svg>
+  </div>
+</body>
+</html>
