@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attention Flow — toy-example graph</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .board{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+         box-shadow:var(--shadow); padding:18px 20px}
+  .board svg{width:100%; height:auto; display:block}
+</style>
+</head>
+<body class="viz" data-palette="attention">
+  <div class="board">
+    <svg id="g" viewBox="0 0 760 452" role="img"
+         aria-label="Three-level attention flow graph: tokens keep, it, fun at the input, after layer 1 and after layer 2; edges between adjacent levels labelled with attention weights; source keep at the input, target fun at the output"></svg>
+  </div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('g');
+const el=(t,a,parent)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(parent||svg).appendChild(e);return e;};
+const T=(x,y,t,a)=>{const e=el('text',Object.assign({x,y,'font-family':'Manrope, system-ui','text-anchor':'middle'},a||{}));e.textContent=t;return e;};
+
+const toks=['keep','it','fun'];
+const cols=[160,400,640];
+const rows=[150,255,360];
+const NW=82, NH=40, hw=NW/2, hh=NH/2;
+
+// attention matrices: A[to][from]
+const A1=[[0.6,0.3,0.1],[0.2,0.7,0.1],[0.1,0.2,0.7]];
+const A2=[[0.5,0.4,0.1],[0.3,0.5,0.2],[0.2,0.3,0.5]];
+const layers=[A1,A2];
+
+// edges: col c (from) → col c+1 (to), capacity = A[to][from]
+for(let c=0;c<2;c++){ const A=layers[c];
+  for(let f=0;f<3;f++) for(let t2=0;t2<3;t2++){
+    const w=A[t2][f];
+    const x1=cols[c]+hw, y1=rows[f], x2=cols[c+1]-hw, y2=rows[t2];
+    el('line',{x1,y1,x2,y2,stroke:'var(--s1)','stroke-opacity':(0.22+0.62*w).toFixed(3),
+      'stroke-width':(1.1+7.2*w).toFixed(2),'stroke-linecap':'round'});
+  }
+}
+// weight labels over edges
+const frac={'-2':0.70,'-1':0.60,'0':0.50,'1':0.40,'2':0.30};
+for(let c=0;c<2;c++){ const A=layers[c];
+  for(let f=0;f<3;f++) for(let t2=0;t2<3;t2++){
+    const w=A[t2][f], dr=t2-f, tt=frac[dr];
+    const x1=cols[c]+hw, y1=rows[f], x2=cols[c+1]-hw, y2=rows[t2];
+    const lx=x1+(x2-x1)*tt, ly=y1+(y2-y1)*tt-3;
+    const lab=T(lx,ly,w.toFixed(1),{'font-size':'12.5','font-weight':(w>=0.3?700:600),
+      fill:(w>=0.3?'var(--ink)':'var(--ink-2)')});
+    lab.setAttribute('paint-order','stroke'); lab.setAttribute('stroke','var(--surface)');
+    lab.setAttribute('stroke-width','3.4'); lab.setAttribute('stroke-linejoin','round');
+  }
+}
+
+// nodes
+const SRC=[0,0], TGT=[2,2];
+for(let c=0;c<3;c++) for(let r=0;r<3;r++){
+  const x=cols[c], y=rows[r];
+  const hot=(c===SRC[0]&&r===SRC[1])||(c===TGT[0]&&r===TGT[1]);
+  el('rect',{x:x-hw,y:y-hh,width:NW,height:NH,rx:20,
+    fill:hot?'color-mix(in srgb,var(--s2) 14%,var(--surface))':'var(--plane)',
+    stroke:hot?'var(--s2)':'var(--line)','stroke-width':hot?2.6:1.5});
+  T(x,y+5,toks[r],{'font-size':'14.5','font-weight':700,
+    fill:hot?'var(--s2)':'var(--ink)'});
+}
+
+// level headers
+['input','after layer 1','after layer 2'].forEach((h,i)=>
+  T(cols[i],64,h,{'font-size':'14','font-weight':700,fill:'var(--ink)'}));
+
+// source / target tags
+const tag=(x,y,t)=>T(x,y,t,{'font-size':'12.5','font-weight':700,fill:'var(--s2)'});
+tag(cols[0], rows[0]-hh-10, 'source');
+tag(cols[2], rows[2]+hh+22, 'target');
+
+// thickness legend
+const ly=430, lx=176;
+el('line',{x1:lx,y1:ly,x2:lx+34,y2:ly,stroke:'var(--s1)','stroke-opacity':0.8,'stroke-width':6.2,'stroke-linecap':'round'});
+T(lx+44,ly+4,'higher weight',{'font-size':'12','font-weight':600,fill:'var(--ink-2)','text-anchor':'start'});
+el('line',{x1:lx+160,y1:ly,x2:lx+194,y2:ly,stroke:'var(--s1)','stroke-opacity':0.35,'stroke-width':1.6,'stroke-linecap':'round'});
+T(lx+204,ly+4,'lower',{'font-size':'12','font-weight':600,fill:'var(--ink-2)','text-anchor':'start'});
+</script>
+</body>
+</html>
