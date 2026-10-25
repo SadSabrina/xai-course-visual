@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rollout и Flow — тепловые карты toy-примера</title>
+<link rel="stylesheet" href="/xai-course-visual/assets/viz.css">
+<style>
+  .board{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius);
+         box-shadow:var(--shadow); padding:18px 20px}
+  .board svg{width:100%; height:auto; display:block}
+</style>
+</head>
+<body class="viz" data-palette="attention">
+  <div class="board">
+    <svg id="g" viewBox="0 0 760 392" role="img"
+         aria-label="Две тепловые карты 3×3, Rollout и Flow, по токенам keep it fun; строки — куда, столбцы — откуда; общая шкала от 0 до 1; значения подписаны в клетках"></svg>
+  </div>
+
+<script>
+const NS='http://www.w3.org/2000/svg';
+const svg=document.getElementById('g');
+const el=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e;};
+const T=(x,y,t,a)=>{const e=el('text',Object.assign({x,y,'font-family':'Manrope, system-ui','text-anchor':'middle'},a||{}));e.textContent=t;return e;};
+
+const toks=['keep','it','fun'];
+// значения как в тексте: строки — «куда», столбцы — «откуда»
+const ROLL=[[0.39,0.45,0.16],[0.30,0.48,0.22],[0.23,0.37,0.40]];
+const FLOW=[[0.8,0.8,0.3],[0.6,1.0,0.4],[0.5,0.7,0.7]];
+const fmt=(v,d)=>v.toFixed(d);
+
+const C=60;                 // размер клетки
+const maps=[
+  {name:'Rollout', M:ROLL, gx:150, d:2},
+  {name:'Flow',    M:FLOW, gx:432, d:1},
+];
+const gy=122;
+
+// ОБЩАЯ шкала 0..1 для обеих карт
+function tint(t){ t=Math.max(0,Math.min(1,t)); return `color-mix(in srgb, var(--s1) ${(14+78*t).toFixed(1)}%, var(--surface))`; }
+
+maps.forEach(mp=>{
+  const gx=mp.gx, cx=gx+C*1.5;
+  // заголовок карты
+  T(cx, 54, mp.name, {'font-size':'16','font-weight':700, fill:'var(--ink)'});
+  // ось «откуда →»
+  T(cx, 80, 'откуда →', {'font-size':'12.5','font-weight':600, fill:'var(--ink-2)'});
+  // заголовки колонок
+  toks.forEach((tk,c)=> T(gx+c*C+C/2, 104, tk, {'font-size':'13.5','font-weight':700, fill:'var(--ink)'}));
+  // ось «куда»
+  const ky=gy+C*1.5;
+  T(gx-62, ky, 'куда', {'font-size':'12.5','font-weight':600, fill:'var(--ink-2)',
+    transform:`rotate(-90 ${gx-62} ${ky})`});
+  // метки строк
+  toks.forEach((tk,r)=> T(gx-12, gy+r*C+C/2+5, tk, {'font-size':'13.5','font-weight':700,
+    fill:'var(--ink)','text-anchor':'end'}));
+  // клетки — цвет по значению на общей шкале 0..1
+  for(let r=0;r<3;r++) for(let c=0;c<3;c++){
+    const v=mp.M[r][c], t=v;
+    el('rect',{x:gx+c*C, y:gy+r*C, width:C-2, height:C-2, rx:5, fill:tint(t)});
+    const hot=t>=0.5;
+    const lab=T(gx+c*C+(C-2)/2, gy+r*C+(C-2)/2+5, fmt(v,mp.d),
+      {'font-size':'15','font-weight':700, fill: hot?'#ffffff':'var(--ink)'});
+    lab.setAttribute('paint-order','stroke');
+    lab.setAttribute('stroke', hot?'rgba(10,20,40,.30)':'var(--surface)');
+    lab.setAttribute('stroke-width','2.6'); lab.setAttribute('stroke-linejoin','round');
+  }
+});
+
+// одна общая шкала 0 → 1 под обеими картами
+(function(){
+  const sw=300, sx=(maps[0].gx + (maps[1].gx+3*C))/2 - sw/2, sy=gy+3*C+18, seg=20;
+  for(let i=0;i<seg;i++){ el('rect',{x:sx+i*(sw/seg), y:sy, width:Math.ceil(sw/seg), height:12, fill:tint(i/(seg-1))}); }
+  el('rect',{x:sx, y:sy, width:sw, height:12, fill:'none', stroke:'var(--line)','stroke-width':1});
+  T(sx, sy+30, '0', {'font-size':'12.5','font-weight':600, fill:'var(--ink-2)','text-anchor':'start'});
+  T(sx+sw, sy+30, '1', {'font-size':'12.5','font-weight':600, fill:'var(--ink-2)','text-anchor':'end'});
+  T(sx+sw/2, sy+30, 'общая шкала', {'font-size':'12','font-weight':600, fill:'var(--ink-2)'});
+})();
+</script>
+</body>
+</html>
